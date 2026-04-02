@@ -1,0 +1,157 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "dataset": "spencer/samsum_reformat",
+  "task": "Summarization",
+  "n_train": 2000,
+  "n_eval": 200,
+  "zero_shot": {
+    "metrics": {
+      "ROUGE-1": 29.04,
+      "ROUGE-2": 9.18,
+      "ROUGE-L": 22.59,
+      "n": 200
+    },
+    "examples": [
+      {
+        "dialogue": "A: Hi Tom, are you busy tomorrow’s afternoon?\r\nB: I’m pretty sure I am. What’s up?\r\nA: Can you go with me to the animal shelter?.\r\nB: What do you want...",
+        "gold": "A will go to the animal shelter tomorrow to get a puppy for her son. They already visited the shelter last Monday and the son chose the puppy. ",
+        "pred": "Tom is talking about getting a puppy for his son, discussing the process, and sharing his experience with a dog named Lemmy, who he likes to name after his hamster.",
+        "rouge1": 0.3103448275862069,
+        "rouge2": 0.10714285714285715,
+        "rougeL": 0.2413793103448276
+      },
+      {
+        "dialogue": "Emma: I’ve just fallen in love with this advent calendar! Awesome! I wanna one for my kids!\r\nRob: I used to get one every year as a child! Loved them!...",
+        "gold": "C and B love the advent calendar. A fits inside calendar various items, for instance, small toys and Christmas decorations. Her children are excited whenever they get the calendar.",
+        "pred": "Emma and Lauren discuss the features of a new advent calendar, highlighting its variety of items and the added special features like notes for children.",
+        "rouge1": 0.3703703703703704,
+        "rouge2": 0.03846153846153846,
+        "rougeL": 0.25925925925925924
+      },
+      {
+        "dialogue": "Jackie: Madison is pregnant\r\nJackie: but she doesn't wanna talk about it\r\nIggy: why\r\nJackie: I don't know why because she doesn't wanna talk about it\r...",
+        "gold": "Madison is pregnant but she doesn't want to talk about it. Patricia Stevens got married and she thought she was pregnant. ",
+        "pred": "Jackie and Iggy discuss the possibility of a pregnancy, highlighting the emotional and practical concerns of both, leading to a realization that they are referring to the same person.",
+        "rouge1": 0.0784313725490196,
+        "rouge2": 0.0,
+        "rougeL": 0.0392156862745098
+      },
+      {
+        "dialogue": "Marla: <file_photo>\r\nMarla: look what I found under my bed\r\nKiki: lol\r\nTamara: is that someone's underwear?\r\nMarla: it certainly isn't mine, my ass is...",
+        "gold": "B found a pair of boxers under her bed.",
+        "pred": "Marla and Kiki discuss a situation where Tamara suggests that someone put their underwear in her room as a dare, leading to a CSI investigation.",
+        "rouge1": 0.11764705882352941,
+        "rouge2": 0.0,
+        "rougeL": 0.11764705882352941
+      },
+      {
+        "dialogue": "Robert: Hey give me the address of this music shop you mentioned before\r\nRobert: I have to buy guitar cable\r\nFred: <file_other>\r\nFred: Catch it on goo...",
+        "gold": "A wants B to send him the address of the music shop as he needs to buy guitar cable.",
+        "pred": "Robert asked for the address of a music shop and mentioned he needed guitar cable. Fred replied by directing him to Google Maps.",
+        "rouge1": 0.5714285714285715,
+        "rouge2": 0.25,
+        "rougeL": 0.42857142857142855
+      }
+    ]
+  },
+  "few_shot": {
+    "metrics": {
+      "ROUGE-1": 31.69,
+      "ROUGE-2": 10.93,
+      "ROUGE-L": 24.7,
+      "n": 200
+    },
+    "examples": [
+      {
+        "dialogue": "A: Hi Tom, are you busy tomorrow’s afternoon?\r\nB: I’m pretty sure I am. What’s up?\r\nA: Can you go with me to the animal shelter?.\r\nB: What do you want...",
+        "gold": "A will go to the animal shelter tomorrow to get a puppy for her son. They already visited the shelter last Monday and the son chose the puppy. ",
+        "pred": "A and B discuss a puppy for Tom, with A planning to bring a small dog that he took to the shelter.",
+        "rouge1": 0.36000000000000004,
+        "rouge2": 0.16666666666666666,
+        "rougeL": 0.23999999999999996
+      },
+      {
+        "dialogue": "Emma: I’ve just fallen in love with this advent calendar! Awesome! I wanna one for my kids!\r\nRob: I used to get one every year as a child! Loved them!...",
+        "gold": "C and B love the advent calendar. A fits inside calendar various items, for instance, small toys and Christmas decorations. Her children are excited whenever they get the calendar.",
+        "pred": "Emma and Lauren discuss an advent calendar filled with creative and thoughtful items, making it a meaningful tradition for their children.",
+        "rouge1": 0.32,
+        "rouge2": 0.041666666666666664,
+        "rougeL": 0.24000000000000002
+      },
+      {
+        "dialogue": "Jackie: Madison is pregnant\r\nJackie: but she doesn't wanna talk about it\r\nIggy: why\r\nJackie: I don't know why because she doesn't wanna talk about it\r...",
+        "gold": "Madison is pregnant but she doesn't want to talk about it. Patricia Stevens got married and she thought she was pregnant. ",
+        "pred": "Iggy and Jackie discuss the possibility of a pregnancy, referencing their friend's experience and the emotional impact on the couple.",
+        "rouge1": 0.046511627906976744,
+        "rouge2": 0.0,
+        "rougeL": 0.046511627906976744
+      },
+      {
+        "dialogue": "Marla: <file_photo>\r\nMarla: look what I found under my bed\r\nKiki: lol\r\nTamara: is that someone's underwear?\r\nMarla: it certainly isn't mine, my ass is...",
+        "gold": "B found a pair of boxers under her bed.",
+        "pred": "A's mom found something under her bed. A, B's mom, answers the call because her dad left his phone behind.",
+        "rouge1": 0.3870967741935484,
+        "rouge2": 0.13793103448275862,
+        "rougeL": 0.2580645161290322
+      },
+      {
+        "dialogue": "Robert: Hey give me the address of this music shop you mentioned before\r\nRobert: I have to buy guitar cable\r\nFred: <file_other>\r\nFred: Catch it on goo...",
+        "gold": "A wants B to send him the address of the music shop as he needs to buy guitar cable.",
+        "pred": "Robert asked for the address of a music shop, and Fred directed him to Google Maps to find the location.",
+        "rouge1": 0.5128205128205129,
+        "rouge2": 0.16216216216216214,
+        "rougeL": 0.3076923076923077
+      }
+    ]
+  },
+  "lora": {
+    "metrics": {
+      "ROUGE-1": 42.57,
+      "ROUGE-2": 19.6,
+      "ROUGE-L": 35.44,
+      "n": 200
+    },
+    "examples": [
+      {
+        "dialogue": "A: Hi Tom, are you busy tomorrow’s afternoon?\r\nB: I’m pretty sure I am. What’s up?\r\nA: Can you go with me to the animal shelter?.\r\nB: What do you want...",
+        "gold": "A will go to the animal shelter tomorrow to get a puppy for her son. They already visited the shelter last Monday and the son chose the puppy. ",
+        "pred": "Tom will take A to the animal shelter tomorrow afternoon. A wants to get a puppy for her son.",
+        "rouge1": 0.5957446808510638,
+        "rouge2": 0.4444444444444445,
+        "rougeL": 0.5531914893617021
+      },
+      {
+        "dialogue": "Emma: I’ve just fallen in love with this advent calendar! Awesome! I wanna one for my kids!\r\nRob: I used to get one every year as a child! Loved them!...",
+        "gold": "C and B love the advent calendar. A fits inside calendar various items, for instance, small toys and Christmas decorations. Her children are excited whenever they get the calendar.",
+        "pred": "Emma loves the advent calendar. She wants to get one for her kids. She remembers that she used to get one every year as a child. She likes the new one. It has different things inside. She adds a special thing for her sister.",
+        "rouge1": 0.273972602739726,
+        "rouge2": 0.08450704225352113,
+        "rougeL": 0.2191780821917808
+      },
+      {
+        "dialogue": "Jackie: Madison is pregnant\r\nJackie: but she doesn't wanna talk about it\r\nIggy: why\r\nJackie: I don't know why because she doesn't wanna talk about it\r...",
+        "gold": "Madison is pregnant but she doesn't want to talk about it. Patricia Stevens got married and she thought she was pregnant. ",
+        "pred": "A and B are talking about a pregnant woman.",
+        "rouge1": 0.2580645161290322,
+        "rouge2": 0.06896551724137931,
+        "rougeL": 0.1935483870967742
+      },
+      {
+        "dialogue": "Marla: <file_photo>\r\nMarla: look what I found under my bed\r\nKiki: lol\r\nTamara: is that someone's underwear?\r\nMarla: it certainly isn't mine, my ass is...",
+        "gold": "B found a pair of boxers under her bed.",
+        "pred": "A and B are investigating a pair of boxers.",
+        "rouge1": 0.5555555555555556,
+        "rouge2": 0.375,
+        "rougeL": 0.5555555555555556
+      },
+      {
+        "dialogue": "Robert: Hey give me the address of this music shop you mentioned before\r\nRobert: I have to buy guitar cable\r\nFred: <file_other>\r\nFred: Catch it on goo...",
+        "gold": "A wants B to send him the address of the music shop as he needs to buy guitar cable.",
+        "pred": "A will buy guitar cable from the music shop.",
+        "rouge1": 0.5,
+        "rouge2": 0.30769230769230765,
+        "rougeL": 0.2857142857142857
+      }
+    ]
+  }
+}

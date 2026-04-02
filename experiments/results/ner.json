@@ -1,0 +1,157 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "dataset": "Davlan/conll2003_noMISC",
+  "task": "NER",
+  "n_train": 2000,
+  "n_eval": 200,
+  "zero_shot": {
+    "metrics": {
+      "F1": 9.75,
+      "Precision": 12.57,
+      "Recall": 8.85,
+      "n": 200
+    },
+    "examples": [
+      {
+        "sentence": "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY .",
+        "gold": "ORG: LEICESTERSHIRE",
+        "pred": "PER: none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "LONDON 1996-08-30",
+        "gold": "LOC: LONDON",
+        "pred": "none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship .",
+        "gold": "PER: Phil Simmons | ORG: Leicestershire, Somerset",
+        "pred": "PER: Phil Simmons | ORG: Leicestershire | LOC: Somerset",
+        "f1": 0.6666666666666666,
+        "precision": 0.6666666666666666,
+        "recall": 0.6666666666666666
+      },
+      {
+        "sentence": "Their stay on top , though , may be short-lived as title rivals Essex , Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire .",
+        "gold": "ORG: Essex, Derbyshire, Surrey, Kent, Nottinghamshire",
+        "pred": "none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "After bowling Somerset out for 83 on the opening morning at Grace Road , Leicestershire extended their first innings by 94 runs before being bowled out for 296 with England discard Andy Caddick taking three for 83 .",
+        "gold": "PER: Andy Caddick | ORG: Somerset, Leicestershire | LOC: Grace Road, England",
+        "pred": "PER: none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    ]
+  },
+  "few_shot": {
+    "metrics": {
+      "F1": 18.91,
+      "Precision": 21.12,
+      "Recall": 18.4,
+      "n": 200
+    },
+    "examples": [
+      {
+        "sentence": "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY .",
+        "gold": "ORG: LEICESTERSHIRE",
+        "pred": "PER: none | LOC: none | ORG: none | none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "LONDON 1996-08-30",
+        "gold": "LOC: LONDON",
+        "pred": "none",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship .",
+        "gold": "PER: Phil Simmons | ORG: Leicestershire, Somerset",
+        "pred": "PER: Phil Simmons | LOC: Leicestershire, Somerset",
+        "f1": 0.3333333333333333,
+        "precision": 0.3333333333333333,
+        "recall": 0.3333333333333333
+      },
+      {
+        "sentence": "Their stay on top , though , may be short-lived as title rivals Essex , Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire .",
+        "gold": "ORG: Essex, Derbyshire, Surrey, Kent, Nottinghamshire",
+        "pred": "LOC: Derbyshire, Essex, Surrey, Nottinghamshire | PER: Kent",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "After bowling Somerset out for 83 on the opening morning at Grace Road , Leicestershire extended their first innings by 94 runs before being bowled out for 296 with England discard Andy Caddick taking three for 83 .",
+        "gold": "PER: Andy Caddick | ORG: Somerset, Leicestershire | LOC: Grace Road, England",
+        "pred": "PER: none | LOC: Leicestershire, Grace Road, England | ORG: Somerset, England",
+        "f1": 0.6,
+        "precision": 0.6,
+        "recall": 0.6
+      }
+    ]
+  },
+  "lora": {
+    "metrics": {
+      "F1": 33.83,
+      "Precision": 30.15,
+      "Recall": 42.58,
+      "n": 200
+    },
+    "examples": [
+      {
+        "sentence": "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY .",
+        "gold": "ORG: LEICESTERSHIRE",
+        "pred": "PER: LEICESTERSHIRE | ORG: CRICKET | LOC: LEICESTERSHIRE, CRICKET",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "LONDON 1996-08-30",
+        "gold": "LOC: LONDON",
+        "pred": "PER: LONDON | ORG: LONDON",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship .",
+        "gold": "PER: Phil Simmons | ORG: Leicestershire, Somerset",
+        "pred": "PER: Phil Simmons | ORG: Leicestershire | LOC: Somerset",
+        "f1": 0.6666666666666666,
+        "precision": 0.6666666666666666,
+        "recall": 0.6666666666666666
+      },
+      {
+        "sentence": "Their stay on top , though , may be short-lived as title rivals Essex , Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire .",
+        "gold": "ORG: Essex, Derbyshire, Surrey, Kent, Nottinghamshire",
+        "pred": "PER: Essex, Derbyshire, Surrey, Nottinghamshire, Kent | ORG: Derbyshire, Essex, Surrey, Nottinghamshire, Kent | LOC: Derbyshire, Essex, Surrey, Nottinghamshire, Kent",
+        "f1": 0.5,
+        "precision": 0.3333333333333333,
+        "recall": 1.0
+      },
+      {
+        "sentence": "After bowling Somerset out for 83 on the opening morning at Grace Road , Leicestershire extended their first innings by 94 runs before being bowled out for 296 with England discard Andy Caddick taking three for 83 .",
+        "gold": "PER: Andy Caddick | ORG: Somerset, Leicestershire | LOC: Grace Road, England",
+        "pred": "PER: Andy Caddick | ORG: Somerset | LOC: Grace Road",
+        "f1": 0.7499999999999999,
+        "precision": 1.0,
+        "recall": 0.6
+      }
+    ]
+  }
+}

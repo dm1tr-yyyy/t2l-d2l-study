@@ -1,0 +1,70 @@
+{
+  "russian_qa": {
+    "v1": {
+      "total_sec": 118.17,
+      "per_example_sec": 0.591,
+      "n": 200
+    },
+    "v2": {
+      "total_sec": 162.37,
+      "per_example_sec": 0.812,
+      "n": 200
+    },
+    "v3": {
+      "total_sec": 251.59,
+      "per_example_sec": 1.258,
+      "n": 200
+    }
+  },
+  "english_qa": {
+    "v1": {
+      "total_sec": 155.58,
+      "per_example_sec": 0.778,
+      "n": 200
+    },
+    "v2": {
+      "total_sec": 106.45,
+      "per_example_sec": 0.532,
+      "n": 200
+    },
+    "v3": {
+      "total_sec": 88.03,
+      "per_example_sec": 0.44,
+      "n": 200
+    }
+  },
+  "ner": {
+    "v1": {
+      "total_sec": 770.89,
+      "per_example_sec": 3.854,
+      "n": 200
+    },
+    "v2": {
+      "total_sec": 846.28,
+      "per_example_sec": 4.231,
+      "n": 200
+    },
+    "v3": {
+      "total_sec": 109.38,
+      "per_example_sec": 0.547,
+      "n": 200
+    }
+  },
+  "summarization": {
+    "v1": {
+      "total_sec": 261.56,
+      "per_example_sec": 1.308,
+      "n": 200
+    },
+    "v2": {
+      "total_sec": 255.49,
+      "per_example_sec": 1.277,
+      "n": 200
+    },
+    "v3": {
+      "total_sec": 202.2,
+      "per_example_sec": 1.011,
+      "n": 200
+    }
+  }
+}

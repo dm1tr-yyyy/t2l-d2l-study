@@ -1,0 +1,139 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "dataset": "rajpurkar/squad",
+  "language": "en",
+  "n_train": 2000,
+  "n_eval": 200,
+  "no_context": {
+    "metrics": {
+      "EM": 0.0,
+      "F1": 4.54,
+      "n": 200
+    },
+    "examples": [
+      {
+        "question": "Which NFL team represented the AFC at Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Answer: New England Patriots.",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Which NFL team represented the NFC at Super Bowl 50?",
+        "gold": "Carolina Panthers",
+        "pred": "The answer is: New England Patriots.",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Where did Super Bowl 50 take place?",
+        "gold": "Santa Clara, California",
+        "pred": "Answer: Super Bowl 50 took place in Washington, D.C.",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Which NFL team won Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Answer: New England Patriots.",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+        "gold": "gold",
+        "pred": "The answer is: 50th anniversary Super Bowl.",
+        "em": 0.0,
+        "f1": 0.0
+      }
+    ]
+  },
+  "with_context": {
+    "metrics": {
+      "EM": 8.0,
+      "F1": 40.98,
+      "n": 200
+    },
+    "examples": [
+      {
+        "question": "Which NFL team represented the AFC at Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "The AFC champion team at Super Bowl 50 was the Denver Broncos.",
+        "em": 0.0,
+        "f1": 0.33333333333333337
+      },
+      {
+        "question": "Which NFL team represented the NFC at Super Bowl 50?",
+        "gold": "Carolina Panthers",
+        "pred": "The answer is the Carolina Panthers.",
+        "em": 0.0,
+        "f1": 0.6666666666666666
+      },
+      {
+        "question": "Where did Super Bowl 50 take place?",
+        "gold": "Santa Clara, California",
+        "pred": "The answer is: Levi's Stadium, San Francisco Bay Area, Santa Clara, California.",
+        "em": 0.0,
+        "f1": 0.42857142857142855
+      },
+      {
+        "question": "Which NFL team won Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "The answer is the Denver Broncos.",
+        "em": 0.0,
+        "f1": 0.6666666666666666
+      },
+      {
+        "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+        "gold": "gold",
+        "pred": "The answer is: gold.",
+        "em": 0.0,
+        "f1": 0.5
+      }
+    ]
+  },
+  "lora": {
+    "metrics": {
+      "EM": 55.5,
+      "F1": 67.08,
+      "n": 200
+    },
+    "examples": [
+      {
+        "question": "Which NFL team represented the AFC at Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Denver Broncos.",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "Which NFL team represented the NFC at Super Bowl 50?",
+        "gold": "Carolina Panthers",
+        "pred": "National Football Conference (NFC)",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Where did Super Bowl 50 take place?",
+        "gold": "Santa Clara, California",
+        "pred": "Levi's Stadium in the San Francisco Bay Area at Santa Clara, California.",
+        "em": 0.0,
+        "f1": 0.42857142857142855
+      },
+      {
+        "question": "Which NFL team won Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Denver Broncos.",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+        "gold": "gold",
+        "pred": "gold-themed initiatives",
+        "em": 0.0,
+        "f1": 0.0
+      }
+    ]
+  }
+}
