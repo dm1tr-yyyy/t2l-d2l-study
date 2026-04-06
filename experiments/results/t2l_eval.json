@@ -1,0 +1,186 @@
+{
+  "russian_qa": {
+    "EM": 25.0,
+    "F1": 48.36,
+    "sec_per_example": 1.019,
+    "n": 200,
+    "examples": [
+      {
+        "question": "Когда былв 1707 году принял Акт об унии ?",
+        "gold": "В 1707 году.",
+        "pred": "Шотландии",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Когда король Шотландии Яков VI унаследовал английский престол и стал королём Англии Яковом I?",
+        "gold": "В 1603 году.",
+        "pred": "1603",
+        "em": 0.0,
+        "f1": 0.5
+      },
+      {
+        "question": "После каких событий Шотландия короткое время угрожала избрать собственного монарха-протестанта?",
+        "gold": "После Славной революции и свержения католика Якова VII Вильгельмом III и Марией II.",
+        "pred": "Славная революция",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Каким по численности населения районом в Англии является город Шеффилд?",
+        "gold": "третьим",
+        "pred": "третьим",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "Через что протекает река Шиф?",
+        "gold": "город",
+        "pred": "Шеффилд",
+        "em": 0.0,
+        "f1": 0.0
+      }
+    ]
+  },
+  "english_qa": {
+    "EM": 84.5,
+    "F1": 88.52,
+    "sec_per_example": 0.596,
+    "n": 200,
+    "examples": [
+      {
+        "question": "Which NFL team represented the AFC at Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Denver Broncos",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "Which NFL team represented the NFC at Super Bowl 50?",
+        "gold": "Carolina Panthers",
+        "pred": "Carolina Panthers",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "Where did Super Bowl 50 take place?",
+        "gold": "Santa Clara, California",
+        "pred": "Levi's Stadium",
+        "em": 0.0,
+        "f1": 0.0
+      },
+      {
+        "question": "Which NFL team won Super Bowl 50?",
+        "gold": "Denver Broncos",
+        "pred": "Denver Broncos",
+        "em": 1.0,
+        "f1": 1.0
+      },
+      {
+        "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+        "gold": "gold",
+        "pred": "gold",
+        "em": 1.0,
+        "f1": 1.0
+      }
+    ]
+  },
+  "ner": {
+    "F1": 40.13,
+    "Precision": 46.71,
+    "Recall": 37.06,
+    "sec_per_example": 0.68,
+    "n": 200,
+    "examples": [
+      {
+        "sentence": "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY .",
+        "gold": "ORG: LEICESTERSHIRE",
+        "pred": "CRICKET - LEICESTERSHIRE",
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      {
+        "sentence": "LONDON 1996-08-30",
+        "gold": "LOC: LONDON",
+        "pred": "LOC: LONDON",
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "sentence": "West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship .",
+        "gold": "PER: Phil Simmons | ORG: Leicestershire, Somerset",
+        "pred": "PER: Phil Simmons | ORG: Leicestershire | ORG: Somerset",
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "sentence": "Their stay on top , though , may be short-lived as title rivals Essex , Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire .",
+        "gold": "ORG: Essex, Derbyshire, Surrey, Kent, Nottinghamshire",
+        "pred": "ORG: Essex, Derbyshire, Surrey | ORG: Nottinghamshire",
+        "f1": 0.888888888888889,
+        "precision": 1.0,
+        "recall": 0.8
+      },
+      {
+        "sentence": "After bowling Somerset out for 83 on the opening morning at Grace Road , Leicestershire extended their first innings by 94 runs before being bowled out for 296 with England discard Andy Caddick taking three for 83 .",
+        "gold": "PER: Andy Caddick | ORG: Somerset, Leicestershire | LOC: Grace Road, England",
+        "pred": "LOC: Grace Road, Leicestershire, England",
+        "f1": 0.5,
+        "precision": 0.6666666666666666,
+        "recall": 0.4
+      }
+    ]
+  },
+  "summarization": {
+    "ROUGE-1": 30.71,
+    "ROUGE-2": 12.56,
+    "ROUGE-L": 25.91,
+    "sec_per_example": 1.353,
+    "n": 200,
+    "examples": [
+      {
+        "dialogue": "Hannah: Hey, do you have Betty's number?\nAmanda: Lemme check\nHannah: <file_gif>\nAmanda: Sorry, can't find it.\nAmanda: Ask Larry\nAmanda: He called her last time we were at the park together\nHannah: I d",
+        "gold": "A needs Betty's number but Amanda doesn't have it. She needs to contact Larry.",
+        "pred": "Hannah asks Amanda for Betty's number.",
+        "rouge1": 0.34782608695652173,
+        "rouge2": 0.19047619047619044,
+        "rougeL": 0.26086956521739124
+      },
+      {
+        "dialogue": "Eric: MACHINE!\r\nRob: That's so gr8!\r\nEric: I know! And shows how Americans see Russian ;)\r\nRob: And it's really funny!\r\nEric: I know! I especially like the train part!\r\nRob: Hahaha! No one talks to th",
+        "gold": "B and A are going to watch a stand-up on youtube.",
+        "pred": "Eric and Rob discuss a stand-up act by a Russian comedian.",
+        "rouge1": 0.4166666666666667,
+        "rouge2": 0.18181818181818182,
+        "rougeL": 0.3333333333333333
+      },
+      {
+        "dialogue": "Lenny: Babe, can you help me with something?\r\nBob: Sure, what's up?\r\nLenny: Which one should I pick?\r\nBob: Send me photos\r\nLenny:  <file_photo>\r\nLenny:  <file_photo>\r\nLenny:  <file_photo>\r\nBob: I like",
+        "gold": "B can't decide which trousers to buy. A advised B on that topic. B goes with A's advice to pick the trousers that are of best quality.",
+        "pred": "Lenny asks Bob for help choosing between three pairs of trousers.",
+        "rouge1": 0.1,
+        "rouge2": 0.0,
+        "rougeL": 0.05
+      },
+      {
+        "dialogue": "Will: hey babe, what do you want for dinner tonight?\r\nEmma:  gah, don't even worry about it tonight\r\nWill: what do you mean? everything ok?\r\nEmma: not really, but it's ok, don't worry about cooking th",
+        "gold": "A will be home soon and she will let B know.",
+        "pred": "Emma is not hungry and will pick her up from work.",
+        "rouge1": 0.18181818181818182,
+        "rouge2": 0.0,
+        "rougeL": 0.18181818181818182
+      },
+      {
+        "dialogue": "Ollie: Hi , are you in Warsaw\r\nJane: yes, just back! Btw are you free for diner the 19th?\r\nOllie: nope!\r\nJane: and the  18th?\r\nOllie: nope, we have this party and you must be there, remember?\r\nJane: o",
+        "gold": "A is in Warsaw. B and A has a party. A lost her calendar. They will get a lunch this week on Friday. B accidentally called A and talked about whisky. A cancels lunch. They'll meet for a tea at 6 pm.",
+        "pred": "Jane and Ollie discuss their plans for the week.",
+        "rouge1": 0.11538461538461539,
+        "rouge2": 0.0,
+        "rougeL": 0.07692307692307693
+      }
+    ]
+  }
+}

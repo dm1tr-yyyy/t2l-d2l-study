@@ -1,0 +1,66 @@
+{
+  "russian_qa": {
+    "task_name": "Russian question answering",
+    "adapter": "/Users/dmitriy/PycharmProjects/coursework/text-to-lora/trained_t2l/gemma_2b_t2l/extras/user_generated/20260404_154939_QPYNurtc_russian_qa",
+    "results": [
+      {
+        "question": "Контекст: Москва — столица России и крупнейший город страны. Население города превышает 12 миллионов человек. Москва является политическим, экономическим и культурным центром России.\n\nВопрос: Какое население Москвы?",
+        "base": "Население Москвы превышает **12 миллионов человек**.",
+        "adapted": "более 12 миллионов человек"
+      },
+      {
+        "question": "Контекст: Байкал — крупнейшее пресноводное озеро в мире по объёму воды. Оно расположено в Сибири и содержит около 20% мировых запасов поверхностных пресных вод.\n\nВопрос: Где находится озеро Байкал?",
+        "base": "Озеро Байкал находится в **Сибири**.",
+        "adapted": "Сибирь"
+      }
+    ]
+  },
+  "english_qa": {
+    "task_name": "English question answering",
+    "adapter": "/Users/dmitriy/PycharmProjects/coursework/text-to-lora/trained_t2l/gemma_2b_t2l/extras/user_generated/20260404_154940_q29hpH3G_english_qa",
+    "results": [
+      {
+        "question": "Context: The Amazon River is the largest river in the world by discharge volume of water. It is located in South America and flows through Brazil.\n\nQuestion: Where does the Amazon River flow?",
+        "base": "The Amazon River flows through **South America**, specifically through **Brazil**.",
+        "adapted": "South America and flows through Brazil"
+      },
+      {
+        "question": "Context: Python is a high-level programming language known for its simplicity and readability. It was created by Guido van Rossum and first released in 1991.\n\nQuestion: Who created Python?",
+        "base": "Python was created by **Guido van Rossum**.",
+        "adapted": "Guido van Rossum"
+      }
+    ]
+  },
+  "ner": {
+    "task_name": "Named entity recognition",
+    "adapter": "/Users/dmitriy/PycharmProjects/coursework/text-to-lora/trained_t2l/gemma_2b_t2l/extras/user_generated/20260404_154940_HPkkCxja_ner",
+    "results": [
+      {
+        "question": "Identify named entities in: 'Apple CEO Tim Cook announced new products in San Francisco last Tuesday.'",
+        "base": "Here are the named entities from the sentence:\n\n* **Apple:** Company\n* **Tim Cook:** Person\n* **San Francisco:** Location \n* **Tuesday:** Date",
+        "adapted": "Apple, Tim Cook, San Francisco"
+      },
+      {
+        "question": "Identify named entities in: 'Barack Obama was born in Hawaii and served as the 44th President of the United States.'",
+        "base": "Here are the named entities from the sentence:\n\n* **Barack Obama:** Person\n* **Hawaii:** Location\n* **United States:** Location \n* **44th:** Number (ordinal) \n\n\nLet me know if you'd like me to identify any other entities in a different text!",
+        "adapted": "Barack Obama, Hawaii, United States"
+      }
+    ]
+  },
+  "summarization": {
+    "task_name": "Dialogue summarization",
+    "adapter": "/Users/dmitriy/PycharmProjects/coursework/text-to-lora/trained_t2l/gemma_2b_t2l/extras/user_generated/20260404_154940_PC9pnHCj_summarization",
+    "results": [
+      {
+        "question": "Summarize this dialogue:\nAlice: Hey, did you finish the report?\nBob: Yes, I sent it to the manager this morning.\nAlice: Great, what was the main finding?\nBob: Sales increased by 15% this quarter.",
+        "base": "Alice asks Bob if he finished his report. Bob confirms he sent it to the manager and tells Alice that the main finding is a 15% increase in sales this quarter.",
+        "adapted": "Bob finished the report and sent it to the manager."
+      },
+      {
+        "question": "Summarize this dialogue:\nMike: I can't make it to the meeting tomorrow.\nSarah: Why not?\nMike: I have a doctor's appointment at 10am.\nSarah: OK, I'll send you the notes afterwards.",
+        "base": "Mike is unable to attend a meeting tomorrow because he has a doctor's appointment at 10am. Sarah will send him the meeting notes after the appointment.",
+        "adapted": "Mike can't attend a meeting tomorrow because of a doctor's appointment. He will get the notes afterwards."
+      }
+    ]
+  }
+}
