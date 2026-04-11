@@ -1,0 +1,104 @@
+"""
+Конфигурация D2L гиперсети.
+auto_config(model_name) извлекает размерности из HuggingFace config.
+"""
+
+from dataclasses import dataclass, field
+
+import torch
+from transformers import AutoConfig
+
+
+@dataclass
+class D2LConfig:
+    # --- Базовая модель ---
+    model_name: str = "Qwen/Qwen3-0.6B"
+    num_layers: int = 0         # auto
+    hidden_size: int = 0        # auto
+    intermediate_size: int = 0  # auto
+    target_module: str = "down_proj"
+
+    # --- LoRA ---
+    lora_r: int = 8
+    lora_alpha: float = 0.0     # auto: r^(3/2) * 2
+
+    # --- Perceiver ---
+    n_latent_queries: int = 8
+    perceiver_heads: int = 8
+    perceiver_blocks: int = 6   # меньше чем в оригинале (9) для MPS
+    latent_size: int = 512
+
+    # --- HyperLoRA ---
+    num_pre_head_layers: int = 1
+
+    # --- Encoder ---
+    max_chunk_len: int = 512
+
+    # --- Training ---
+    lr: float = 2e-5
+    max_steps: int = 20000
+    batch_size: int = 1
+    grad_accum: int = 8
+    warmup_ratio: float = 0.1
+    kl_top_k: int = 16
+    l1_reg: float = 1e-4
+
+    # --- Device ---
+    device: str = ""  # auto
+
+    @property
+    def lora_scaling(self) -> float:
+        return self.lora_alpha / self.lora_r
+
+    @property
+    def d_in(self) -> int:
+        """Input dim для down_proj: intermediate_size."""
+        return self.intermediate_size
+
+    @property
+    def d_out(self) -> int:
+        """Output dim для down_proj: hidden_size."""
+        return self.hidden_size
+
+
+def auto_config(model_name: str = "Qwen/Qwen3-0.6B", **overrides) -> D2LConfig:
+    """Создаёт конфиг, автоматически читая размерности из HF модели."""
+    hf = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+
+    cfg = D2LConfig(
+        model_name=model_name,
+        num_layers=hf.num_hidden_layers,
+        hidden_size=hf.hidden_size,
+        intermediate_size=hf.intermediate_size,
+    )
+
+    # lora_alpha = r^(3/2) * 2  (из reference D2L)
+    cfg.lora_alpha = cfg.lora_r ** 1.5 * 2
+
+    # Device
+    if not cfg.device:
+        if torch.cuda.is_available():
+            cfg.device = "cuda"
+        elif torch.backends.mps.is_available():
+            cfg.device = "mps"
+        else:
+            cfg.device = "cpu"
+
+    # Overrides
+    for k, v in overrides.items():
+        if hasattr(cfg, k):
+            setattr(cfg, k, v)
+
+    return cfg
+
+
+if __name__ == "__main__":
+    cfg = auto_config()
+    print(f"Model:       {cfg.model_name}")
+    print(f"Layers:      {cfg.num_layers}")
+    print(f"Hidden:      {cfg.hidden_size}")
+    print(f"Intermediate:{cfg.intermediate_size}")
+    print(f"LoRA r={cfg.lora_r}, alpha={cfg.lora_alpha:.2f}, scaling={cfg.lora_scaling:.4f}")
+    print(f"Target:      {cfg.target_module} → d_in={cfg.d_in}, d_out={cfg.d_out}")
+    print(f"Perceiver:   {cfg.n_latent_queries} queries, {cfg.perceiver_blocks} blocks, latent={cfg.latent_size}")
+    print(f"Device:      {cfg.device}")
