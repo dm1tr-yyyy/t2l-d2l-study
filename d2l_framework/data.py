@@ -51,20 +51,20 @@ class SQuADDataset(Dataset):
 
         # 2. Teacher prompt: context + question → answer
         teacher_text = (
-            f"<|im_start|>system\nAnswer briefly based on the context.<|im_end|>\n"
+            f"<|im_start|>system\n/no_think\nAnswer briefly based on the context.<|im_end|>\n"
             f"<|im_start|>user\nContext: {context}\n\nQuestion: {question}<|im_end|>\n"
             f"<|im_start|>assistant\n{answer}<|im_end|>"
         )
         teacher_enc = self.tokenizer(
             teacher_text,
             truncation=True,
-            max_length=self.config.max_chunk_len,
+            max_length=self.config.max_teacher_len,
             return_tensors="pt",
         )
 
         # 3. Student prompt: question only → answer (LoRA заменяет контекст)
         student_text = (
-            f"<|im_start|>system\nAnswer briefly.<|im_end|>\n"
+            f"<|im_start|>system\n/no_think\nAnswer briefly.<|im_end|>\n"
             f"<|im_start|>user\nQuestion: {question}<|im_end|>\n"
             f"<|im_start|>assistant\n{answer}<|im_end|>"
         )

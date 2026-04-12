@@ -1,0 +1,134 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "n_eval": 50,
+  "checkpoint": "d2l_checkpoints/step_10000.pt",
+  "base": {
+    "EM": 0.0,
+    "F1": 6.88,
+    "n": 50,
+    "sec_per_example": 0.437
+  },
+  "context": {
+    "EM": 34.0,
+    "F1": 51.29,
+    "n": 50,
+    "sec_per_example": 0.345
+  },
+  "d2l": {
+    "EM": 4.0,
+    "F1": 9.28,
+    "n": 50,
+    "sec_per_example": 0.479
+  },
+  "examples_base": [
+    {
+      "question": "Which NFL team represented the AFC at Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The New England Patriots represented the American Football Conference (AFC) at Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Which NFL team represented the NFC at Super Bowl 50?",
+      "gold": "Carolina Panthers",
+      "pred": "The New England Patriots represented the NFC at Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Where did Super Bowl 50 take place?",
+      "gold": "Santa Clara, California",
+      "pred": "New Orleans, Louisiana",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Which NFL team won Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The New England Patriots won Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+      "gold": "gold",
+      "pred": "Red and white were used to emphasize the 50th anniversary of the Super Bowl.",
+      "em": 0.0,
+      "f1": 0.0
+    }
+  ],
+  "examples_context": [
+    {
+      "question": "Which NFL team represented the AFC at Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The AFC champion Denver Broncos represented the AFC at Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.33333333333333337
+    },
+    {
+      "question": "Which NFL team represented the NFC at Super Bowl 50?",
+      "gold": "Carolina Panthers",
+      "pred": "The NFC champion at Super Bowl 50 was the Carolina Panthers.",
+      "em": 0.0,
+      "f1": 0.3636363636363636
+    },
+    {
+      "question": "Where did Super Bowl 50 take place?",
+      "gold": "Santa Clara, California",
+      "pred": "San Francisco Bay Area",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Which NFL team won Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The Denver Broncos won Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.5
+    },
+    {
+      "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+      "gold": "gold",
+      "pred": "gold",
+      "em": 1.0,
+      "f1": 1.0
+    }
+  ],
+  "examples_d2l": [
+    {
+      "question": "Which NFL team represented the AFC at Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The New England Patriots represented the AFC at Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Which NFL team represented the NFC at Super Bowl 50?",
+      "gold": "Carolina Panthers",
+      "pred": "The New York Giants represented the NFC at Super Bowl 50.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Where did Super Bowl 50 take place?",
+      "gold": "Santa Clara, California",
+      "pred": "New Orleans",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "Which NFL team won Super Bowl 50?",
+      "gold": "Denver Broncos",
+      "pred": "The New York Giants won Super Bowl 50 in 2016.",
+      "em": 0.0,
+      "f1": 0.0
+    },
+    {
+      "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+      "gold": "gold",
+      "pred": "red",
+      "em": 0.0,
+      "f1": 0.0
+    }
+  ]
+}

@@ -33,7 +33,7 @@ class SwiGLUMLP(nn.Module):
         self.down_proj = nn.Linear(hidden_size, output_size, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+        return self.down_proj(F.gelu(self.gate_proj(x)) * self.up_proj(x))
 
 
 # ---------------------------------------------------------------------------

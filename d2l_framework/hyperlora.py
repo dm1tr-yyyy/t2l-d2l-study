@@ -75,7 +75,7 @@ class HyperLoRA(nn.Module):
         )
 
         # Learnable scalers (из reference, строки 295-306)
-        self.scaler_A = nn.Parameter(torch.ones(1, n_layers, r, 1))
+        self.scaler_A = nn.Parameter(torch.zeros(1, n_layers, r, 1))  # ноль: LoRA=0 на старте
         self.scaler_B = nn.Parameter(torch.zeros(1, n_layers, r, 1))
 
     def forward(

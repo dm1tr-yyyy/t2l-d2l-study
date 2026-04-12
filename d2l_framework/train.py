@@ -13,6 +13,8 @@ KL-дистилляция:
 import time
 from pathlib import Path
 
+from datetime import datetime
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -172,6 +174,9 @@ def train(config: D2LConfig | None = None):
             elapsed = time.time() - t0
             avg_loss = running_loss / log_interval * config.grad_accum
             lr_now = scheduler.get_last_lr()[0]
+
+            elapsed_str = time.strftime('%H:%M:%S', time.gmtime(elapsed))
+
             print(
                 f"[{step:>6}/{config.max_steps}] "
                 f"loss={avg_loss:.4f} "
@@ -179,6 +184,7 @@ def train(config: D2LConfig | None = None):
                 f"l1={l1_loss.item():.4f} "
                 f"lr={lr_now:.2e} "
                 f"({elapsed/step:.2f}s/step)"
+                f"{datetime.now().strftime('%H:%M:%S')} - текущее время"
             )
             running_loss = 0.0
 

@@ -80,16 +80,16 @@ class DocToLoRAInference:
         max_new_tokens: int = 256,
     ) -> str:
         """Генерирует ответ. LoRA уже внутри модели (после internalize)."""
-        # Промпт с пустым <think> блоком — Qwen3 пропускает thinking
-        _NO_THINK = "<think>\n</think>\n"
-        prompt_text = (
-            f"<|im_start|>system\nAnswer briefly.<|im_end|>\n"
-            f"<|im_start|>user\n{question}<|im_end|>\n"
-            f"<|im_start|>assistant\n{_NO_THINK}"
+        chat = [
+            {"role": "system", "content": "/no_think\nAnswer briefly."},
+            {"role": "user", "content": question},
+        ]
+        input_ids = self.tokenizer.apply_chat_template(
+            chat, add_generation_prompt=True, return_tensors="pt",
         )
-        input_ids = self.tokenizer(
-            prompt_text, return_tensors="pt",
-        )["input_ids"].to(self.device)
+        if not isinstance(input_ids, torch.Tensor):
+            input_ids = input_ids["input_ids"]
+        input_ids = input_ids.to(self.device)
 
         output = self.base_model.generate(
             input_ids,
@@ -99,11 +99,7 @@ class DocToLoRAInference:
         )
 
         new_tokens = output[0][input_ids.shape[1]:]
-        text = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-        # Fallback: если thinking всё равно просочился
-        if "</think>" in text:
-            text = text.split("</think>", 1)[1].strip()
-        return text
+        return self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
 
     def reset(self) -> None:
         """Убирает LoRA, восстанавливает голую модель."""
@@ -129,6 +125,23 @@ class DocToLoRAInference:
         if was_injected:
             remove_lora(self.base_model, self.config)
 
-        prompt = f"Context: {document}\n\nQuestion: {question}\n\nAnswer briefly."
-        answer = self.generate(prompt, max_new_tokens)
-        return answer
+        # Используем chat template вместо сырого промпта
+        chat = [
+            {"role": "system", "content": "/no_think\nAnswer briefly based on the context."},
+            {"role": "user", "content": f"Context: {document}\n\nQuestion: {question}"},
+        ]
+        input_ids = self.tokenizer.apply_chat_template(
+            chat, add_generation_prompt=True, return_tensors="pt",
+        )
+        if not isinstance(input_ids, torch.Tensor):
+            input_ids = input_ids["input_ids"]
+        input_ids = input_ids.to(self.device)
+
+        output = self.base_model.generate(
+            input_ids,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
+        new_tokens = output[0][input_ids.shape[1]:]
+        return self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()

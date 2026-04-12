@@ -22,7 +22,7 @@ from datasets import load_dataset
 from .config import auto_config
 from .inference import DocToLoRAInference
 
-N_EVAL = 200
+N_EVAL = 50
 RESULTS_DIR = Path("d2l_framework/results")
 
 

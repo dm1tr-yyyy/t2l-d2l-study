@@ -83,12 +83,12 @@ def kl_distillation_loss(
     # (subword tokenization зависит от контекста перед ответом)
     N_student = valid_logits.shape[0]
     N_teacher = teacher_topk_logprobs.shape[0]
-    N = min(N_student, N_teacher)
-    if N == 0:
-        return torch.tensor(0.0, device=student_logits.device, requires_grad=True)
-    valid_logits = valid_logits[:N]
-    teacher_topk_logprobs = teacher_topk_logprobs[:N]
-    teacher_topk_indices  = teacher_topk_indices[:N]
+    if N_student != N_teacher:
+        # Обрезаем до одинаковой длины с конца
+        min_len = min(N_student, N_teacher)
+        valid_logits = valid_logits[-min_len:] if N_student > min_len else valid_logits
+        teacher_topk_logprobs = teacher_topk_logprobs[-min_len:] if N_teacher > min_len else teacher_topk_logprobs
+        teacher_topk_indices = teacher_topk_indices[-min_len:] if N_teacher > min_len else teacher_topk_indices
 
     # Full log-partition (на CPU для стабильности на MPS)
     log_Z = torch.logsumexp(valid_logits.cpu(), dim=-1, keepdim=True).to(valid_logits.device)  # [N, 1]

@@ -12,7 +12,7 @@ from transformers import AutoConfig
 @dataclass
 class D2LConfig:
     # --- Базовая модель ---
-    model_name: str = "Qwen/Qwen3-0.6B"
+    model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
     num_layers: int = 0         # auto
     hidden_size: int = 0        # auto
     intermediate_size: int = 0  # auto
@@ -32,11 +32,12 @@ class D2LConfig:
     num_pre_head_layers: int = 1
 
     # --- Encoder ---
-    max_chunk_len: int = 512
+    max_chunk_len: int = 512      # для ctx (документ → encoder)
+    max_teacher_len: int = 1024   # для teacher prompt (ctx+Q+A, должен влезать ответ)
 
     # --- Training ---
     lr: float = 2e-5
-    max_steps: int = 20000
+    max_steps: int = 10000
     batch_size: int = 1
     grad_accum: int = 8
     warmup_ratio: float = 0.1
@@ -61,7 +62,7 @@ class D2LConfig:
         return self.hidden_size
 
 
-def auto_config(model_name: str = "Qwen/Qwen3-0.6B", **overrides) -> D2LConfig:
+def auto_config(model_name: str = "Qwen/Qwen2.5-0.5B-Instruct", **overrides) -> D2LConfig:
     """Создаёт конфиг, автоматически читая размерности из HF модели."""
     hf = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 
