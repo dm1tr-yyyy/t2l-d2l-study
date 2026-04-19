@@ -36,11 +36,11 @@ class D2LConfig:
     max_teacher_len: int = 1024   # для teacher prompt (ctx+Q+A, должен влезать ответ)
 
     # --- Training ---
-    lr: float = 2e-5
-    max_steps: int = 10000
-    batch_size: int = 1
-    grad_accum: int = 8
-    warmup_ratio: float = 0.1
+    lr: float = 3e-5
+    max_steps: int = 30000
+    batch_size: int = 8
+    grad_accum: int = 4
+    warmup_ratio: float = 0.05
     kl_top_k: int = 16
     l1_reg: float = 1e-4
 

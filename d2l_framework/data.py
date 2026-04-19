@@ -139,7 +139,8 @@ def get_dataloader(
         batch_size=config.batch_size,
         shuffle=(split == "train"),
         collate_fn=collate_fn,
-        num_workers=0,
+        num_workers=4,
+        pin_memory=True,
     )
 
 

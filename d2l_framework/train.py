@@ -41,9 +41,11 @@ def train(config: D2LConfig | None = None):
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
+    # bfloat16 на CUDA/A100, float32 на MPS/CPU (MPS не поддерживает bf16 везде)
+    dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
     base_model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
-        torch_dtype=torch.float32,
+        torch_dtype=dtype,
         attn_implementation="eager",
     ).to(device)
     base_model.eval()
@@ -97,8 +99,8 @@ def train(config: D2LConfig | None = None):
 
     optimizer.zero_grad()
     running_loss = 0.0
-    log_interval = 20
-    save_interval = 500
+    log_interval = 50
+    save_interval = 5000
     t0 = time.time()
 
     for step in range(1, config.max_steps + 1):
