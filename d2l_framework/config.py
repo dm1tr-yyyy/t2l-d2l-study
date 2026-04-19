@@ -12,7 +12,7 @@ from transformers import AutoConfig
 @dataclass
 class D2LConfig:
     # --- Базовая модель ---
-    model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
+    model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
     num_layers: int = 0         # auto
     hidden_size: int = 0        # auto
     intermediate_size: int = 0  # auto
@@ -25,7 +25,7 @@ class D2LConfig:
     # --- Perceiver ---
     n_latent_queries: int = 8
     perceiver_heads: int = 8
-    perceiver_blocks: int = 6   # меньше чем в оригинале (9) для MPS
+    perceiver_blocks: int = 9   # оригинал D2L
     latent_size: int = 512
 
     # --- HyperLoRA ---
@@ -37,7 +37,7 @@ class D2LConfig:
 
     # --- Training ---
     lr: float = 3e-5
-    max_steps: int = 8213
+    max_steps: int = 5476       # 2 эпохи: ceil(87599 / 32 * 2)
     batch_size: int = 32
     grad_accum: int = 1
     warmup_ratio: float = 0.05
@@ -62,7 +62,7 @@ class D2LConfig:
         return self.hidden_size
 
 
-def auto_config(model_name: str = "Qwen/Qwen2.5-0.5B-Instruct", **overrides) -> D2LConfig:
+def auto_config(model_name: str = "Qwen/Qwen2.5-1.5B-Instruct", **overrides) -> D2LConfig:
     """Создаёт конфиг, автоматически читая размерности из HF модели."""
     hf = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 
@@ -94,7 +94,7 @@ def auto_config(model_name: str = "Qwen/Qwen2.5-0.5B-Instruct", **overrides) -> 
 
 
 if __name__ == "__main__":
-    cfg = auto_config()
+    cfg = auto_config("Qwen/Qwen2.5-1.5B-Instruct")
     print(f"Model:       {cfg.model_name}")
     print(f"Layers:      {cfg.num_layers}")
     print(f"Hidden:      {cfg.hidden_size}")
