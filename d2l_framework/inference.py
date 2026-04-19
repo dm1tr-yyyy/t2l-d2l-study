@@ -46,6 +46,10 @@ class DocToLoRAInference:
 
         if checkpoint_path is not None:
             self.d2l.load_checkpoint(checkpoint_path)
+            # Приводим к тому же dtype что и base_model (fp32 на MPS/CPU, bf16 на CUDA)
+            dtype = next(self.base_model.parameters()).dtype
+            self.d2l.perceiver.to(dtype=dtype)
+            self.d2l.hyperlora.to(dtype=dtype)
 
     @torch.no_grad()
     def internalize(self, document: str) -> None:
