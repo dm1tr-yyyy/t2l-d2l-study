@@ -37,9 +37,9 @@ class D2LConfig:
 
     # --- Training ---
     lr: float = 3e-5
-    max_steps: int = 30000
-    batch_size: int = 8
-    grad_accum: int = 4
+    max_steps: int = 8213
+    batch_size: int = 32
+    grad_accum: int = 1
     warmup_ratio: float = 0.05
     kl_top_k: int = 16
     l1_reg: float = 1e-4

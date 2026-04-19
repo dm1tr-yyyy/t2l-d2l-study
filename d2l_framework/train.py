@@ -103,7 +103,8 @@ def train(config: D2LConfig | None = None):
     optimizer.zero_grad()
     running_loss = 0.0
     log_interval = 50
-    save_interval = 5000
+    steps_per_epoch = len(dataloader)
+    save_interval = steps_per_epoch // 2  # каждые полэпохи
     t0 = time.time()
 
     for step in range(1, config.max_steps + 1):

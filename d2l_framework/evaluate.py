@@ -133,7 +133,7 @@ def main():
 
     config = auto_config()
     print("=" * 60)
-    print("D2L Evaluation: 200 примеров SQuAD (English QA)")
+    print("D2L Evaluation: {N_EVAL} примеров SQuAD (English QA)")
     print(f"Model: {config.model_name}")
     if checkpoint:
         print(f"Checkpoint: {checkpoint}")
