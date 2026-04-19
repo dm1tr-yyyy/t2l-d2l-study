@@ -58,6 +58,9 @@ def train(config: D2LConfig | None = None):
     print("Строю гиперсеть...")
     d2l = DocToLoRA(config, base_model=base_model)
     d2l.to(device)
+    # Perceiver + HyperLoRA → тот же dtype что и base_model (bf16 на CUDA)
+    d2l.perceiver.to(dtype=dtype)
+    d2l.hyperlora.to(dtype=dtype)
     # Perceiver + HyperLoRA в train mode
     d2l.perceiver.train()
     d2l.hyperlora.train()
