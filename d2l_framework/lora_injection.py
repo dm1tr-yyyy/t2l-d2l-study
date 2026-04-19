@@ -46,7 +46,7 @@ def inject_lora(
     Инжектит LoRA-веса в down_proj каждого слоя модели.
 
     Args:
-        model: базовая LLM (e.g. Qwen3ForCausalLM)
+        model: базовая LLM
         lora_dict: {"A": [batch, n_layers, r, d_in], "B": [batch, n_layers, r, d_out]}
         config: D2LConfig
     """

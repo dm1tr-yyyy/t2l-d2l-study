@@ -133,7 +133,7 @@ def main():
 
     config = auto_config()
     print("=" * 60)
-    print("D2L Evaluation: {N_EVAL} примеров SQuAD (English QA)")
+    print(f"D2L Evaluation: {N_EVAL} примеров SQuAD (English QA)")
     print(f"Model: {config.model_name}")
     if checkpoint:
         print(f"Checkpoint: {checkpoint}")
@@ -177,7 +177,7 @@ def main():
 
     # --- Сводная таблица ---
     print(f"\n{'='*60}")
-    print("СВОДНАЯ ТАБЛИЦА: Qwen2.5-0.5B-IT на SQuAD (200 примеров)")
+    print(f"СВОДНАЯ ТАБЛИЦА: Qwen2.5-0.5B-IT на SQuAD ({N_EVAL} примеров)")
     print(f"{'='*60}")
     print(f"{'Вариант':<28} {'EM':>7} {'F1':>7} {'s/ex':>7}")
     print("-" * 52)

@@ -1,24 +1,24 @@
 {
   "model": "Qwen/Qwen2.5-0.5B-Instruct",
   "n_eval": 50,
-  "checkpoint": "d2l_checkpoints/step_10000.pt",
+  "checkpoint": "d2l_checkpoints/step_5476.pt",
   "base": {
     "EM": 0.0,
     "F1": 6.88,
     "n": 50,
-    "sec_per_example": 0.437
+    "sec_per_example": 0.434
   },
   "context": {
     "EM": 34.0,
     "F1": 51.29,
     "n": 50,
-    "sec_per_example": 0.345
+    "sec_per_example": 0.342
   },
   "d2l": {
     "EM": 4.0,
-    "F1": 9.28,
+    "F1": 10.8,
     "n": 50,
-    "sec_per_example": 0.479
+    "sec_per_example": 0.509
   },
   "examples_base": [
     {
@@ -112,14 +112,14 @@
     {
       "question": "Where did Super Bowl 50 take place?",
       "gold": "Santa Clara, California",
-      "pred": "New Orleans",
+      "pred": "New Orleans, Louisiana",
       "em": 0.0,
       "f1": 0.0
     },
     {
       "question": "Which NFL team won Super Bowl 50?",
       "gold": "Denver Broncos",
-      "pred": "The New York Giants won Super Bowl 50 in 2016.",
+      "pred": "The New York Giants won the Super Bowl 50.",
       "em": 0.0,
       "f1": 0.0
     },
