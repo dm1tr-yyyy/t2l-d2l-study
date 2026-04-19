@@ -177,16 +177,19 @@ def main():
 
     # --- Сводная таблица ---
     print(f"\n{'='*60}")
-    print(f"СВОДНАЯ ТАБЛИЦА: Qwen2.5-0.5B-IT на SQuAD ({N_EVAL} примеров)")
+    print(f"СВОДНАЯ ТАБЛИЦА: {config.model_name} на SQuAD ({N_EVAL} примеров)")
     print(f"{'='*60}")
-    print(f"{'Вариант':<28} {'EM':>7} {'F1':>7} {'s/ex':>7}")
-    print("-" * 52)
+    print(f"{'Вариант':<28} {'EM':>7} {'F1':>7} {'ROUGE-L':>9} {'Norm':>7} {'s/ex':>7}")
+    print("-" * 65)
+    context_rouge = all_metrics["context"]["ROUGE-L"]
     for name, label in [("base", "(1) Base (no context)"),
                         ("context", "(2) +Context"),
                         ("d2l", "(3) D2L LoRA")]:
         m = all_metrics[name]
-        print(f"  {label:<26} {m['EM']:>7.1f} {m['F1']:>7.1f} {m['sec_per_example']:>7.2f}")
-    print("=" * 52)
+        norm = m["ROUGE-L"] / context_rouge if context_rouge > 0 else 0.0
+        print(f"  {label:<26} {m['EM']:>7.1f} {m['F1']:>7.1f} {m['ROUGE-L']:>9.1f} {norm:>7.3f} {m['sec_per_example']:>7.2f}")
+    print("=" * 65)
+    print(f"  Norm = ROUGE-L / +Context ROUGE-L (как в статье D2L)")
 
     # Сохраняем
     output = {
