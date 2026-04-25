@@ -52,43 +52,27 @@ def _apply_template(tokenizer, user_content: str, answer: str, max_length: int, 
         {"role": "assistant", "content": answer},
     ]
 
-    try:
-        result = tokenizer.apply_chat_template(
-            messages,
-            tokenize=True,
-            return_dict=True,
-            add_generation_prompt=False,
-            return_assistant_tokens_mask=True,
-            enable_thinking=enable_thinking,
-        )
-        input_ids = torch.tensor(result["input_ids"])
-        labels    = torch.tensor([
-            tok if mask else -100
-            for tok, mask in zip(result["input_ids"], result["assistant_masks"])
-        ])
-    except TypeError:
-        # Fallback если return_assistant_tokens_mask не поддерживается
-        text = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=False,
-            enable_thinking=enable_thinking,
-        )
-        enc = tokenizer(text, return_tensors="pt", add_special_tokens=False)
-        input_ids = enc["input_ids"].squeeze(0)
+    # Полный текст с ответом
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=False,
+        enable_thinking=enable_thinking,
+    )
+    enc = tokenizer(text, return_tensors="pt", add_special_tokens=False)
+    input_ids = enc["input_ids"].squeeze(0)
 
-        # Находим начало ответа: генерируем prompt без ответа и берём его длину
-        prompt_text = tokenizer.apply_chat_template(
-            [messages[0]],
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=enable_thinking,
-        )
-        prompt_enc  = tokenizer(prompt_text, return_tensors="pt", add_special_tokens=False)
-        prompt_len  = prompt_enc["input_ids"].shape[1]
+    # Длина prompt без ответа — маскируем всё до начала ответа
+    prompt_text = tokenizer.apply_chat_template(
+        [messages[0]],
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=enable_thinking,
+    )
+    prompt_len = tokenizer(prompt_text, return_tensors="pt", add_special_tokens=False)["input_ids"].shape[1]
 
-        labels = input_ids.clone()
-        labels[:prompt_len] = -100
+    labels = input_ids.clone()
+    labels[:prompt_len] = -100
 
     # Обрезаем до max_length
     if input_ids.shape[0] > max_length:
