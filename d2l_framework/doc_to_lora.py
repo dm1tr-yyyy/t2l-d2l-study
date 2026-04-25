@@ -98,7 +98,19 @@ class DocToLoRA(nn.Module):
         torch.save(state, path)
 
     def load_checkpoint(self, path: str):
-        state = torch.load(path, map_location="cpu")
+        state = torch.load(path, map_location="cpu", weights_only=False)
+        # Rebuild perceiver with saved perceiver_blocks if it differs from current config
+        saved_cfg = state.get("config", {})
+        saved_blocks = saved_cfg.get("perceiver_blocks", self.config.perceiver_blocks)
+        if saved_blocks != self.config.perceiver_blocks:
+            from .perceiver import PerceiverResampler
+            import copy
+            device = next(self.hyperlora.parameters()).device
+            dtype = next(self.hyperlora.parameters()).dtype
+            tmp_cfg = copy.copy(self.config)
+            tmp_cfg.perceiver_blocks = saved_blocks
+            self.perceiver = PerceiverResampler(tmp_cfg).to(device=device, dtype=dtype)
+            print(f"  [load_checkpoint] perceiver_blocks: {self.config.perceiver_blocks} → {saved_blocks} (from checkpoint)")
         self.perceiver.load_state_dict(state["perceiver"])
         self.hyperlora.load_state_dict(state["hyperlora"])
 

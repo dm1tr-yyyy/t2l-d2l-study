@@ -3,7 +3,7 @@
 auto_config(model_name) извлекает размерности из HuggingFace config.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import torch
 from transformers import AutoConfig
@@ -12,7 +12,7 @@ from transformers import AutoConfig
 @dataclass
 class D2LConfig:
     # --- Базовая модель ---
-    model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    model_name: str = "Qwen/Qwen3-4B-Instruct-2507"
     num_layers: int = 0         # auto
     hidden_size: int = 0        # auto
     intermediate_size: int = 0  # auto
@@ -22,24 +22,25 @@ class D2LConfig:
     lora_r: int = 8
     lora_alpha: float = 0.0     # auto: r^(3/2) * 2
 
-    # --- Perceiver ---
-    n_latent_queries: int = 8
-    perceiver_heads: int = 8
-    perceiver_blocks: int = 9   # оригинал D2L
+    # --- Perceiver (из статьи D2L, Listing 1) ---
+    n_latent_queries: int = 8   # = lora_r
+    perceiver_heads: int = 4    # MQA: 4 query heads, 1 kv head, head_dim=latent_size
+    perceiver_blocks: int = 8   # статья: 8 cross-attention блоков
     latent_size: int = 512
 
     # --- HyperLoRA ---
     num_pre_head_layers: int = 1
 
     # --- Encoder ---
-    max_chunk_len: int = 512      # для ctx (документ → encoder)
-    max_teacher_len: int = 1024   # для teacher prompt (ctx+Q+A, должен влезать ответ)
+    max_chunk_len: int = 512    # для ctx токенизации (SQuAD: ~200 токенов)
+    max_teacher_len: int = 1024 # для teacher prompt (ctx+Q+A)
 
     # --- Training ---
     lr: float = 3e-5
-    max_steps: int = 5476       # 2 эпохи: ceil(87599 / 32 * 2)
-    batch_size: int = 32
-    grad_accum: int = 1
+    # 2 эпохи на SQuAD: 87599 / batch_size=4 * 2 = 43800 шагов
+    max_steps: int = 43800
+    batch_size: int = 4
+    grad_accum: int = 8         # effective batch = 32
     warmup_ratio: float = 0.05
     kl_top_k: int = 16
     l1_reg: float = 1e-4
@@ -62,7 +63,7 @@ class D2LConfig:
         return self.hidden_size
 
 
-def auto_config(model_name: str = "Qwen/Qwen2.5-1.5B-Instruct", **overrides) -> D2LConfig:
+def auto_config(model_name: str = "Qwen/Qwen3-4B-Instruct-2507", **overrides) -> D2LConfig:
     """Создаёт конфиг, автоматически читая размерности из HF модели."""
     hf = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 
@@ -73,7 +74,7 @@ def auto_config(model_name: str = "Qwen/Qwen2.5-1.5B-Instruct", **overrides) -> 
         intermediate_size=hf.intermediate_size,
     )
 
-    # lora_alpha = r^(3/2) * 2  (из reference D2L)
+    # lora_alpha = r^(3/2) * 2  (из reference repo, model_loading.py:178)
     cfg.lora_alpha = cfg.lora_r ** 1.5 * 2
 
     # Device
@@ -94,12 +95,15 @@ def auto_config(model_name: str = "Qwen/Qwen2.5-1.5B-Instruct", **overrides) -> 
 
 
 if __name__ == "__main__":
-    cfg = auto_config("Qwen/Qwen2.5-1.5B-Instruct")
-    print(f"Model:       {cfg.model_name}")
-    print(f"Layers:      {cfg.num_layers}")
-    print(f"Hidden:      {cfg.hidden_size}")
-    print(f"Intermediate:{cfg.intermediate_size}")
+    cfg = auto_config()
+    print(f"Model:        {cfg.model_name}")
+    print(f"Layers:       {cfg.num_layers}")
+    print(f"Hidden:       {cfg.hidden_size}")
+    print(f"Intermediate: {cfg.intermediate_size}")
     print(f"LoRA r={cfg.lora_r}, alpha={cfg.lora_alpha:.2f}, scaling={cfg.lora_scaling:.4f}")
-    print(f"Target:      {cfg.target_module} → d_in={cfg.d_in}, d_out={cfg.d_out}")
-    print(f"Perceiver:   {cfg.n_latent_queries} queries, {cfg.perceiver_blocks} blocks, latent={cfg.latent_size}")
-    print(f"Device:      {cfg.device}")
+    print(f"d_in={cfg.d_in}, d_out={cfg.d_out}, d_lora={cfg.d_in + cfg.d_out}")
+    print(f"Perceiver:    {cfg.n_latent_queries} queries, {cfg.perceiver_blocks} blocks, "
+          f"{cfg.perceiver_heads} heads, latent={cfg.latent_size}")
+    print(f"q_proj:       {cfg.latent_size} → {cfg.latent_size * cfg.perceiver_heads}")
+    print(f"Device:       {cfg.device}")
+    print(f"Batch:        {cfg.batch_size} × grad_accum {cfg.grad_accum} = {cfg.batch_size * cfg.grad_accum} effective")

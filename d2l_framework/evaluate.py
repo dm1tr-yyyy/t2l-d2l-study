@@ -11,7 +11,6 @@
 import json
 import re
 import string
-import sys
 import time
 from collections import Counter
 from pathlib import Path
@@ -22,7 +21,7 @@ from datasets import load_dataset
 from .config import auto_config
 from .inference import DocToLoRAInference
 
-N_EVAL = 50
+N_EVAL = 200
 RESULTS_DIR = Path("d2l_framework/results")
 
 
@@ -129,9 +128,16 @@ def eval_variant(
 # ---------------------------------------------------------------------------
 
 def main():
-    checkpoint = sys.argv[1] if len(sys.argv) > 1 else None
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("checkpoint", nargs="?", default=None, help="путь к чекпоинту .pt")
+    parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct-2507",
+                        help="HuggingFace model name (default: Qwen/Qwen3-4B-Instruct-2507)")
+    args = parser.parse_args()
 
-    config = auto_config()
+    checkpoint = args.checkpoint
+
+    config = auto_config(args.model)
     print("=" * 60)
     print(f"D2L Evaluation: {N_EVAL} примеров SQuAD (English QA)")
     print(f"Model: {config.model_name}")
@@ -179,17 +185,17 @@ def main():
     print(f"\n{'='*60}")
     print(f"СВОДНАЯ ТАБЛИЦА: {config.model_name} на SQuAD ({N_EVAL} примеров)")
     print(f"{'='*60}")
-    print(f"{'Вариант':<28} {'EM':>7} {'F1':>7} {'ROUGE-L':>9} {'Norm':>7} {'s/ex':>7}")
-    print("-" * 65)
-    context_rouge = all_metrics["context"]["ROUGE-L"]
+    print(f"{'Вариант':<28} {'EM':>7} {'F1':>7} {'Norm':>7} {'s/ex':>7}")
+    print("-" * 58)
+    context_f1 = all_metrics["context"]["F1"]
     for name, label in [("base", "(1) Base (no context)"),
                         ("context", "(2) +Context"),
                         ("d2l", "(3) D2L LoRA")]:
         m = all_metrics[name]
-        norm = m["ROUGE-L"] / context_rouge if context_rouge > 0 else 0.0
-        print(f"  {label:<26} {m['EM']:>7.1f} {m['F1']:>7.1f} {m['ROUGE-L']:>9.1f} {norm:>7.3f} {m['sec_per_example']:>7.2f}")
+        norm = m["F1"] / context_f1 if context_f1 > 0 else 0.0
+        print(f"  {label:<26} {m['EM']:>7.1f} {m['F1']:>7.1f} {norm:>7.3f} {m['sec_per_example']:>7.2f}")
     print("=" * 65)
-    print(f"  Norm = ROUGE-L / +Context ROUGE-L (как в статье D2L)")
+    print(f"  Norm = F1 / +Context F1 (как в статье D2L)")
 
     # Сохраняем
     output = {

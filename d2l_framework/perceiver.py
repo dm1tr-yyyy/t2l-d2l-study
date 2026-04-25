@@ -1,14 +1,18 @@
 """
 Perceiver Resampler для D2L.
 
-Сжимает variable-length per-layer активации в фиксированный латентный вектор.
-Архитектура из Idefics2PerceiverResampler, переписана с eager attention для MPS.
+Архитектура из статьи D2L (Listing 1) — Idefics2PerceiverResampler:
+  - modality_projection: SwiGLU MLP (hidden_size → latent_size)
+  - 8 cross-attention блоков с 5 RMSNorm на блок
+  - MQA: 4 query heads (512-dim each) → q_proj 512→2048,
+         1 kv head (512-dim) → k/v_proj 512→512
+  - o_proj: 2048→512
 
 Поток:
   [batch, seq_len, hidden_size] →
-  modality_projection (SwiGLU MLP) →
+  modality_projection →
   [batch, seq_len, latent_size] →
-  cross-attention blocks (Q из latents, KV из [context; latents]) →
+  8 × cross-attention block (Q из latents, KV из [context; latents]) →
   [batch, n_latent_queries, latent_size]
 """
 
@@ -22,7 +26,7 @@ from .config import D2LConfig
 
 
 # ---------------------------------------------------------------------------
-# SwiGLU MLP (как modality_projection в reference)
+# SwiGLU MLP
 # ---------------------------------------------------------------------------
 
 class SwiGLUMLP(nn.Module):
@@ -33,7 +37,7 @@ class SwiGLUMLP(nn.Module):
         self.down_proj = nn.Linear(hidden_size, output_size, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(F.gelu(self.gate_proj(x)) * self.up_proj(x))
+        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
 
 
 # ---------------------------------------------------------------------------
@@ -52,68 +56,86 @@ class RMSNorm(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Cross-Attention: Q из latents, K/V из [context; latents]
+# Cross-Attention (MQA): 4 query heads × 512-dim, 1 kv head × 512-dim
+# Соответствует Listing 1: q_proj 512→2048, k/v 512→512, o_proj 2048→512
 # ---------------------------------------------------------------------------
 
 class PerceiverAttention(nn.Module):
     def __init__(self, latent_size: int, n_heads: int):
         super().__init__()
-        self.n_heads = n_heads
-        self.head_dim = latent_size // n_heads
-        assert latent_size % n_heads == 0
+        self.n_heads  = n_heads
+        self.head_dim = latent_size   # каждая query-голова имеет full latent_size dims
 
-        self.q_proj = nn.Linear(latent_size, latent_size, bias=False)
+        # MQA: n_heads query heads, 1 kv head
+        self.q_proj = nn.Linear(latent_size, latent_size * n_heads, bias=False)
         self.k_proj = nn.Linear(latent_size, latent_size, bias=False)
         self.v_proj = nn.Linear(latent_size, latent_size, bias=False)
-        self.o_proj = nn.Linear(latent_size, latent_size, bias=False)
+        self.o_proj = nn.Linear(latent_size * n_heads, latent_size, bias=False)
 
     def forward(
         self,
-        latents: torch.Tensor,  # [batch, n_queries, latent_size]
-        context: torch.Tensor,  # [batch, seq_len, latent_size]
+        latents: torch.Tensor,  # [batch, n_queries, latent_size]  — уже нормализованы
+        context: torch.Tensor,  # [batch, seq_len, latent_size]    — уже нормализованы
     ) -> torch.Tensor:
-        bs = latents.shape[0]
+        bs, n_q, _ = latents.shape
 
-        # Concat: KV from [context; latents]
-        kv_input = torch.cat([context, latents], dim=1)
+        # KV: объединяем context и latents (как в reference Idefics2)
+        kv = torch.cat([context, latents], dim=1)  # [b, seq+n_q, latent]
+        n_kv = kv.shape[1]
 
-        q = self.q_proj(latents)
-        k = self.k_proj(kv_input)
-        v = self.v_proj(kv_input)
+        q = self.q_proj(latents)  # [b, n_q, latent * n_heads]
+        k = self.k_proj(kv)       # [b, n_kv, latent]
+        v = self.v_proj(kv)       # [b, n_kv, latent]
 
-        # [batch, seq, heads, head_dim] → [batch, heads, seq, head_dim]
-        q = q.view(bs, -1, self.n_heads, self.head_dim).transpose(1, 2)
-        k = k.view(bs, -1, self.n_heads, self.head_dim).transpose(1, 2)
-        v = v.view(bs, -1, self.n_heads, self.head_dim).transpose(1, 2)
+        # Reshape для multi-head attention
+        q = q.view(bs, n_q, self.n_heads, self.head_dim).transpose(1, 2)
+        # [b, n_heads, n_q, head_dim]
 
-        # SDPA (MPS compatible)
+        # KV: 1 head, expand до n_heads для SDPA
+        k = k.unsqueeze(1).expand(bs, self.n_heads, n_kv, self.head_dim)
+        v = v.unsqueeze(1).expand(bs, self.n_heads, n_kv, self.head_dim)
+
         attn_out = F.scaled_dot_product_attention(q, k, v, is_causal=False)
-        attn_out = attn_out.transpose(1, 2).contiguous().view(bs, -1, self.n_heads * self.head_dim)
+        # [b, n_heads, n_q, head_dim]
 
+        attn_out = attn_out.transpose(1, 2).contiguous().view(bs, n_q, self.n_heads * self.head_dim)
         return self.o_proj(attn_out)
 
 
 # ---------------------------------------------------------------------------
-# Perceiver Block: cross-attn + FFN + residual + RMSNorm
+# Perceiver Block (Idefics2PerceiverLayer из Listing 1)
+# 5 RMSNorm: input_latents, input_context, post_attn, pre_ff, post_ff
 # ---------------------------------------------------------------------------
 
 class PerceiverBlock(nn.Module):
     def __init__(self, latent_size: int, n_heads: int):
         super().__init__()
-        self.attn_norm   = RMSNorm(latent_size)
-        self.attn        = PerceiverAttention(latent_size, n_heads)
-        self.ffn_norm    = RMSNorm(latent_size)
-        self.ffn         = SwiGLUMLP(latent_size, latent_size * 4, latent_size)
+        self.input_latents_norm  = RMSNorm(latent_size)
+        self.input_context_norm  = RMSNorm(latent_size)
+        self.attn                = PerceiverAttention(latent_size, n_heads)
+        self.post_attn_norm      = RMSNorm(latent_size)
+        self.pre_ff_norm         = RMSNorm(latent_size)
+        self.post_ff_norm        = RMSNorm(latent_size)
+        self.ffn                 = SwiGLUMLP(latent_size, latent_size * 4, latent_size)
 
     def forward(
         self,
         latents: torch.Tensor,
         context: torch.Tensor,
     ) -> torch.Tensor:
-        # Cross-attention + residual
-        latents = latents + self.attn(self.attn_norm(latents), context)
-        # FFN + residual
-        latents = latents + self.ffn(self.ffn_norm(latents))
+        # Cross-attention: pre-norm latents и context, post-norm output + residual
+        residual = latents
+        attn_out = self.attn(
+            self.input_latents_norm(latents),
+            self.input_context_norm(context),
+        )
+        latents = residual + self.post_attn_norm(attn_out)
+
+        # FFN: pre-norm input, post-norm output + residual
+        residual = latents
+        ffn_out  = self.ffn(self.pre_ff_norm(latents))
+        latents  = residual + self.post_ff_norm(ffn_out)
+
         return latents
 
 
@@ -131,10 +153,10 @@ class PerceiverResampler(nn.Module):
         super().__init__()
         self.config = config
 
-        # Проекция из hidden_size модели в latent_size perceiver'а
+        # Проекция из hidden_size модели в latent_size perceiver'а (SwiGLU MLP)
         self.modality_proj = SwiGLUMLP(
             input_size=config.hidden_size,
-            hidden_size=config.hidden_size * 2,
+            hidden_size=config.hidden_size * 4,
             output_size=config.latent_size,
         )
 
@@ -143,7 +165,7 @@ class PerceiverResampler(nn.Module):
             torch.randn(config.n_latent_queries, config.latent_size) * 0.02
         )
 
-        # Cross-attention блоки
+        # 8 cross-attention блоков (статья: 8 blocks without self-attention)
         self.blocks = nn.ModuleList([
             PerceiverBlock(config.latent_size, config.perceiver_heads)
             for _ in range(config.perceiver_blocks)
@@ -160,13 +182,9 @@ class PerceiverResampler(nn.Module):
         """
         bs = features.shape[0]
 
-        # Проецируем в latent space
         context = self.modality_proj(features)  # [batch, seq_len, latent_size]
+        latents = self.latents.unsqueeze(0).expand(bs, -1, -1)
 
-        # Expand latents для batch
-        latents = self.latents.unsqueeze(0).expand(bs, -1, -1)  # [batch, n_queries, latent_size]
-
-        # Cross-attention blocks
         for block in self.blocks:
             latents = block(latents, context)
 
@@ -181,9 +199,10 @@ if __name__ == "__main__":
 
     n_params = sum(p.numel() for p in perc.parameters())
     print(f"Perceiver params: {n_params/1e6:.2f}M")
+    print(f"q_proj: {cfg.latent_size} → {cfg.latent_size * cfg.perceiver_heads}  "
+          f"(n_heads={cfg.perceiver_heads}, head_dim={cfg.latent_size})")
 
-    x = torch.randn(1, 200, cfg.hidden_size, device=cfg.device)
+    x = torch.randn(1, 100, cfg.hidden_size, device=cfg.device)
     out = perc(x)
     print(f"Input:  {x.shape}")
-    print(f"Output: {out.shape}")
-    # Expected: [1, 8, 512]
+    print(f"Output: {out.shape}")  # Expected: [1, 8, 512]

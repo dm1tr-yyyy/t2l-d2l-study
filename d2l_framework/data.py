@@ -1,9 +1,10 @@
 """
 DataLoader для обучения D2L на SQuAD.
 
-Каждый пример:
-  - context: параграф (вход encoder'а)
-  - question + answer: для teacher (с контекстом) и student (без контекста)
+Промпты из статьи D2L (Listing 7 и 8):
+  Teacher: SELF_RESPONSE_TEMPLATE — контекст + вопрос как user message
+  Student: QA_PROMPT — только вопрос как user message
+  Ответ: gold answer из SQuAD (teacher forcing)
 """
 
 import torch
@@ -12,6 +13,89 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import PreTrainedTokenizer
 
 from .config import D2LConfig
+
+
+# ---------------------------------------------------------------------------
+# Промпты из статьи D2L (Listing 7, 8)
+# ---------------------------------------------------------------------------
+
+# Teacher: контекст + вопрос (user message)
+SELF_RESPONSE_TEMPLATE = (
+    "You are an honest and helpful assistant.\n\n"
+    "# Provided Information\n"
+    "{context}\n\n---\n\n"
+    "# System Instruction\n"
+    "- The information provided is up-to-date information and/or the user instruction.\n"
+    "- When the provided information is not relevant to the question, ***ignore*** it "
+    "and answer the question based on your knowledge.\n"
+    "- If the provided information is related to the question, incorporate it in your response.\n"
+    "- If the provided information is an instruction, follow the instruction carefully.\n"
+    "\n---\n\n"
+    "# User Input\n"
+    "{question}"
+)
+
+# Student: только вопрос (user message), eval prompt из Listing 8
+QA_PROMPT = (
+    "Answer the following question. Output only the answer "
+    "and do not output any other words.\n\nQuestion: {question}"
+)
+
+
+def _apply_template(tokenizer, user_content: str, answer: str, max_length: int, enable_thinking: bool = False):
+    """
+    Применяет chat template, возвращает input_ids и labels.
+    Labels маскируют всё кроме токенов assistant-ответа.
+    """
+    messages = [
+        {"role": "user",      "content": user_content},
+        {"role": "assistant", "content": answer},
+    ]
+
+    try:
+        result = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            return_dict=True,
+            add_generation_prompt=False,
+            return_assistant_tokens_mask=True,
+            enable_thinking=enable_thinking,
+        )
+        input_ids = torch.tensor(result["input_ids"])
+        labels    = torch.tensor([
+            tok if mask else -100
+            for tok, mask in zip(result["input_ids"], result["assistant_masks"])
+        ])
+    except TypeError:
+        # Fallback если return_assistant_tokens_mask не поддерживается
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=False,
+            enable_thinking=enable_thinking,
+        )
+        enc = tokenizer(text, return_tensors="pt", add_special_tokens=False)
+        input_ids = enc["input_ids"].squeeze(0)
+
+        # Находим начало ответа: генерируем prompt без ответа и берём его длину
+        prompt_text = tokenizer.apply_chat_template(
+            [messages[0]],
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=enable_thinking,
+        )
+        prompt_enc  = tokenizer(prompt_text, return_tensors="pt", add_special_tokens=False)
+        prompt_len  = prompt_enc["input_ids"].shape[1]
+
+        labels = input_ids.clone()
+        labels[:prompt_len] = -100
+
+    # Обрезаем до max_length
+    if input_ids.shape[0] > max_length:
+        input_ids = input_ids[:max_length]
+        labels    = labels[:max_length]
+
+    return input_ids, labels
 
 
 class SQuADDataset(Dataset):
@@ -25,7 +109,7 @@ class SQuADDataset(Dataset):
         max_samples: int | None = None,
     ):
         self.tokenizer = tokenizer
-        self.config = config
+        self.config    = config
 
         ds = load_dataset("rajpurkar/squad", split=split)
         if max_samples is not None:
@@ -36,12 +120,12 @@ class SQuADDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx: int) -> dict:
-        ex = self.data[idx]
+        ex       = self.data[idx]
         context  = ex["context"]
         question = ex["question"]
         answer   = ex["answers"]["text"][0] if ex["answers"]["text"] else ""
 
-        # 1. Context tokens (для encoder'а)
+        # 1. Context tokens для encoder (plain tokenization, без chat template)
         ctx_enc = self.tokenizer(
             context,
             truncation=True,
@@ -49,74 +133,39 @@ class SQuADDataset(Dataset):
             return_tensors="pt",
         )
 
-        # 2. Teacher prompt: context + question → answer
-        teacher_text = (
-            f"<|im_start|>system\n/no_think\nAnswer briefly based on the context.<|im_end|>\n"
-            f"<|im_start|>user\nContext: {context}\n\nQuestion: {question}<|im_end|>\n"
-            f"<|im_start|>assistant\n{answer}<|im_end|>"
-        )
-        teacher_enc = self.tokenizer(
-            teacher_text,
-            truncation=True,
+        # 2. Teacher: SELF_RESPONSE_TEMPLATE (context + question) → answer
+        teacher_prompt = SELF_RESPONSE_TEMPLATE.format(context=context, question=question)
+        teacher_ids, teacher_labels = _apply_template(
+            self.tokenizer, teacher_prompt, answer,
             max_length=self.config.max_teacher_len,
-            return_tensors="pt",
         )
 
-        # 3. Student prompt: question only → answer (LoRA заменяет контекст)
-        student_text = (
-            f"<|im_start|>system\n/no_think\nAnswer briefly.<|im_end|>\n"
-            f"<|im_start|>user\nQuestion: {question}<|im_end|>\n"
-            f"<|im_start|>assistant\n{answer}<|im_end|>"
-        )
-        student_enc = self.tokenizer(
-            student_text,
-            truncation=True,
+        # 3. Student: QA_PROMPT (question only) → answer
+        student_prompt = QA_PROMPT.format(question=question)
+        student_ids, student_labels = _apply_template(
+            self.tokenizer, student_prompt, answer,
             max_length=self.config.max_chunk_len,
-            return_tensors="pt",
         )
-
-        # Labels: маскируем всё кроме ответа (-100)
-        # Находим позицию "assistant\n" и маскируем до неё
-        student_labels = student_enc["input_ids"].clone()
-        assistant_marker = self.tokenizer.encode("assistant\n", add_special_tokens=False)
-        # Простой подход: маскируем первые N токенов до ответа
-        # Ищем последний "assistant" токен
-        ids = student_labels[0].tolist()
-        answer_start = len(ids)  # default: всё замаскировано
-        for i in range(len(ids) - len(assistant_marker), -1, -1):
-            if ids[i:i+len(assistant_marker)] == assistant_marker:
-                answer_start = i + len(assistant_marker)
-                break
-        student_labels[0, :answer_start] = -100
-
-        teacher_labels = teacher_enc["input_ids"].clone()
-        t_ids = teacher_labels[0].tolist()
-        t_answer_start = len(t_ids)
-        for i in range(len(t_ids) - len(assistant_marker), -1, -1):
-            if t_ids[i:i+len(assistant_marker)] == assistant_marker:
-                t_answer_start = i + len(assistant_marker)
-                break
-        teacher_labels[0, :t_answer_start] = -100
 
         return {
-            "ctx_input_ids":      ctx_enc["input_ids"].squeeze(0),
-            "ctx_attention_mask":  ctx_enc["attention_mask"].squeeze(0),
-            "teacher_input_ids":   teacher_enc["input_ids"].squeeze(0),
-            "teacher_attention_mask": teacher_enc["attention_mask"].squeeze(0),
-            "teacher_labels":      teacher_labels.squeeze(0),
-            "student_input_ids":   student_enc["input_ids"].squeeze(0),
-            "student_attention_mask": student_enc["attention_mask"].squeeze(0),
-            "student_labels":      student_labels.squeeze(0),
+            "ctx_input_ids":          ctx_enc["input_ids"].squeeze(0),
+            "ctx_attention_mask":     ctx_enc["attention_mask"].squeeze(0),
+            "teacher_input_ids":      teacher_ids,
+            "teacher_attention_mask": (teacher_ids != self.tokenizer.pad_token_id).long(),
+            "teacher_labels":         teacher_labels,
+            "student_input_ids":      student_ids,
+            "student_attention_mask": (student_ids != self.tokenizer.pad_token_id).long(),
+            "student_labels":         student_labels,
         }
 
 
 def collate_fn(batch: list[dict]) -> dict:
-    """Collate с padding (batch_size=1 обычно, но на всякий случай)."""
+    """Collate с right-padding."""
     result = {}
     for key in batch[0]:
         tensors = [b[key] for b in batch]
         max_len = max(t.shape[0] for t in tensors)
-        padded = []
+        padded  = []
         for t in tensors:
             pad_len = max_len - t.shape[0]
             if pad_len > 0:
@@ -150,8 +199,17 @@ if __name__ == "__main__":
 
     cfg = auto_config()
     tok = AutoTokenizer.from_pretrained(cfg.model_name)
+    if tok.pad_token_id is None:
+        tok.pad_token_id = tok.eos_token_id
 
-    dl = get_dataloader(tok, cfg, max_samples=5)
+    dl = get_dataloader(tok, cfg, max_samples=3)
     batch = next(iter(dl))
     for k, v in batch.items():
-        print(f"{k:30s} {v.shape}")
+        print(f"{k:35s} {v.shape}")
+
+    # Показать один пример
+    ex = dl.dataset[0]
+    print("\nTeacher prompt (decoded):")
+    print(tok.decode(ex["teacher_input_ids"][ex["teacher_labels"] != -100]))
+    print("\nStudent prompt (decoded):")
+    print(tok.decode(ex["student_input_ids"][ex["student_labels"] != -100]))

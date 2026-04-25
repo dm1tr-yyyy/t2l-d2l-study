@@ -25,7 +25,7 @@ from .lora_injection import inject_lora, remove_lora
 from .losses import compute_teacher_topk, kl_distillation_loss, l1_regularization
 
 
-def train(config: D2LConfig | None = None):
+def train(config: D2LConfig | None = None, resume_from: str | None = None, max_samples: int | None = None):
     if config is None:
         config = auto_config()
 
@@ -61,6 +61,11 @@ def train(config: D2LConfig | None = None):
     # Perceiver + HyperLoRA → тот же dtype что и base_model (bf16 на CUDA)
     d2l.perceiver.to(dtype=dtype)
     d2l.hyperlora.to(dtype=dtype)
+
+    if resume_from is not None:
+        print(f"Загружаю чекпоинт: {resume_from}")
+        d2l.load_checkpoint(resume_from)
+
     # Perceiver + HyperLoRA в train mode
     d2l.perceiver.train()
     d2l.hyperlora.train()
@@ -72,7 +77,7 @@ def train(config: D2LConfig | None = None):
     # Данные
     # -------------------------------------------------------------------------
     print("Загружаю SQuAD...")
-    dataloader = get_dataloader(tokenizer, config, split="train", max_samples=None)
+    dataloader = get_dataloader(tokenizer, config, split="train", max_samples=max_samples)
     data_iter = iter(dataloader)
 
     # -------------------------------------------------------------------------
@@ -215,4 +220,27 @@ def train(config: D2LConfig | None = None):
 
 
 if __name__ == "__main__":
-    train()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Train D2L hypernetwork")
+    parser.add_argument("--model", default=None,
+                        help="HuggingFace model name (default from D2LConfig)")
+    parser.add_argument("--resume_from", default=None,
+                        help="Path to checkpoint .pt to resume/fine-tune from")
+    parser.add_argument("--max_steps", type=int, default=None,
+                        help="Override max training steps")
+    parser.add_argument("--batch_size", type=int, default=None,
+                        help="Per-device batch size")
+    parser.add_argument("--grad_accum", type=int, default=None,
+                        help="Gradient accumulation steps")
+    parser.add_argument("--lr", type=float, default=None,
+                        help="Learning rate")
+    parser.add_argument("--max_samples", type=int, default=None,
+                        help="Limit training samples (for quick tests)")
+    args = parser.parse_args()
+
+    overrides = {k: v for k, v in vars(args).items()
+                 if k not in ("model", "resume_from", "max_samples") and v is not None}
+
+    cfg = auto_config(args.model, **overrides) if args.model else auto_config(**overrides)
+    train(cfg, resume_from=args.resume_from, max_samples=args.max_samples)
