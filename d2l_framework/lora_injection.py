@@ -18,8 +18,8 @@ from .config import D2LConfig
 
 def _lora_forward(
     x: torch.Tensor,
-    A: torch.Tensor,        # [r, d_in]
-    B: torch.Tensor,        # [r, d_out]
+    A: torch.Tensor,        # [R, d_in]   R = 2*lora_r (generated stacked with bias)
+    B: torch.Tensor,        # [R, d_out]
     scaling: float,
     original_forward,       # nn.Linear.forward
     self_module: nn.Module,  # the Linear module
@@ -28,10 +28,9 @@ def _lora_forward(
     """Patched forward: base + LoRA delta."""
     base_out = original_forward(x, *args, **kwargs)
 
-    # LoRA: x @ A.T → [batch, seq, r] → @ B → [batch, seq, d_out]
-    # A: [r, d_in], B: [r, d_out]
-    delta = x.to(A.dtype) @ A.T  # [batch, seq, d_in] @ [d_in, r] → [batch, seq, r]
-    delta = delta @ B             # [batch, seq, r] @ [r, d_out] → [batch, seq, d_out]
+    # LoRA: x @ A.T → [batch, seq, R] → @ B → [batch, seq, d_out]
+    delta = x.to(A.dtype) @ A.T  # [batch, seq, d_in] @ [d_in, R] → [batch, seq, R]
+    delta = delta @ B             # [batch, seq, R] @ [R, d_out] → [batch, seq, d_out]
     delta = delta * scaling
 
     return base_out + delta.to(base_out.dtype)

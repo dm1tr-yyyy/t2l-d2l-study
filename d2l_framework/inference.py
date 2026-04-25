@@ -9,7 +9,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .config import D2LConfig, auto_config
-from .data import QA_PROMPT, SELF_RESPONSE_TEMPLATE
+from .data import QA_PROMPT
 from .doc_to_lora import DocToLoRA
 from .lora_injection import inject_lora, remove_lora, is_lora_injected
 
@@ -130,8 +130,12 @@ class DocToLoRAInference:
         if was_injected:
             remove_lora(self.base_model, self.config)
 
-        # Промпт как в статье D2L (Listing 7 — SELF_RESPONSE_TEMPLATE)
-        user_content = SELF_RESPONSE_TEMPLATE.format(context=document, question=question)
+        # Eval-промпт для +context: тот же QA_PROMPT стиль, но с контекстом (как в статье)
+        user_content = (
+            "Answer the following question. Output only the answer "
+            "and do not output any other words.\n\n"
+            f"Context: {document}\n\nQuestion: {question}"
+        )
         chat = [{"role": "user", "content": user_content}]
         input_ids = self.tokenizer.apply_chat_template(
             chat, add_generation_prompt=True, return_tensors="pt",

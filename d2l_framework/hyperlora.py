@@ -1,12 +1,16 @@
 """
 HyperLoRA: генерация LoRA-весов (A, B) из латентного представления.
 
-Из reference D2L (hypernet.py):
+Из reference D2L (hypernet.py + lora_merger.combine_lora):
   - ResMLPBlock для предобработки
   - L2-нормализация
   - Per-layer linear head (заменяем einops.EinMix на nn.Parameter + einsum)
   - Learnable bias_A, bias_B, scaler_A, scaler_B
+  - Bias стекается как ДОПОЛНИТЕЛЬНЫЕ r rank-строк к A/B → итоговый rank=2r
+    (delta = x A_genᵀ B_gen + x bias_Aᵀ bias_B — два независимых LoRA параллельно)
 """
+
+import math
 
 import torch
 import torch.nn as nn
@@ -22,15 +26,16 @@ from .config import D2LConfig
 class ResMLPBlock(nn.Module):
     def __init__(self, size: int, hidden: int):
         super().__init__()
-        self.norm = nn.LayerNorm(size)
-        self.fc1 = nn.Linear(size, hidden)
-        self.fc2 = nn.Linear(hidden, size)
+        self.mlp = nn.Sequential(
+            nn.LayerNorm(size),
+            nn.Linear(size, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, size),
+            nn.LayerNorm(size),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h = self.norm(x)
-        h = F.gelu(self.fc1(h))
-        h = self.fc2(h)
-        return x + h
+        return x + self.mlp(x)
 
 
 # ---------------------------------------------------------------------------
@@ -60,9 +65,13 @@ class HyperLoRA(nn.Module):
         ])
 
         # Per-layer linear head: [n_layers, latent_size, d_lora]
-        # Заменяет einops EinMix — отдельные веса для каждого слоя
+        # Заменяет einops EinMix — отдельные веса для каждого слоя.
+        # Init из reference (hypernet.py:580-588, _bias_hyper_init):
+        #   std = 0.5 / sqrt(d_latent + d_lora * r)
+        # Деление на d_lora*r компенсирует большой выходной d_lora и масштаб через r.
+        head_std = 0.5 / math.sqrt(d_latent + d_lora * r)
         self.head_weight = nn.Parameter(
-            torch.randn(n_layers, d_latent, d_lora) * (1.0 / d_latent ** 0.5)
+            torch.randn(n_layers, d_latent, d_lora) * head_std
         )
 
         # Learnable biases для A и B (из reference, строки 276-293)
@@ -75,7 +84,9 @@ class HyperLoRA(nn.Module):
         )
 
         # Learnable scalers (из reference, строки 295-306)
-        self.scaler_A = nn.Parameter(torch.zeros(1, n_layers, r, 1))  # ноль: LoRA=0 на старте
+        # scaler_A=1: A сразу несёт документо-специфичную информацию
+        # scaler_B=0: LoRA=0 на старте (delta = x@A.T@B, B=0 → delta=0)
+        self.scaler_A = nn.Parameter(torch.ones(1, n_layers, r, 1))
         self.scaler_B = nn.Parameter(torch.zeros(1, n_layers, r, 1))
 
     def forward(
@@ -85,7 +96,8 @@ class HyperLoRA(nn.Module):
         Args:
             latents: [batch, n_layers, lora_r, latent_size]
         Returns:
-            {"A": [batch, n_layers, r, d_in], "B": [batch, n_layers, r, d_out]}
+            {"A": [batch, n_layers, 2r, d_in], "B": [batch, n_layers, 2r, d_out]}
+            Первые r строк — generated (× scaler), вторые r — bias (doc-agnostic).
         """
         d_in  = self.config.d_in
         d_out = self.config.d_out
@@ -104,9 +116,18 @@ class HyperLoRA(nn.Module):
         A = flat[..., :d_in]   # [batch, n_layers, r, d_in]
         B = flat[..., d_in:]   # [batch, n_layers, r, d_out]
 
-        # Apply scalers and add biases
-        A = A * self.scaler_A + self.bias_A  # broadcast over batch
-        B = B * self.scaler_B + self.bias_B
+        # Apply scalers (без сложения с bias — bias стекается ниже как rank-строки)
+        A = A * self.scaler_A
+        B = B * self.scaler_B
+
+        # Стек bias-а как доп. r rank-строк (reference combine_lora):
+        # эффект: delta = x A_genᵀ B_gen + x bias_Aᵀ bias_B (две независимые LoRA)
+        bs = A.shape[0]
+        bias_A = self.bias_A.unsqueeze(0).expand(bs, -1, -1, -1)  # [batch, L, r, d_in]
+        bias_B = self.bias_B.unsqueeze(0).expand(bs, -1, -1, -1)  # [batch, L, r, d_out]
+
+        A = torch.cat([A, bias_A], dim=2)  # [batch, L, 2r, d_in]
+        B = torch.cat([B, bias_B], dim=2)  # [batch, L, 2r, d_out]
 
         return {"A": A, "B": B}
 

@@ -23,9 +23,13 @@ class D2LConfig:
     lora_alpha: float = 0.0     # auto: r^(3/2) * 2
 
     # --- Perceiver (из статьи D2L, Listing 1) ---
-    n_latent_queries: int = 8   # = lora_r
-    perceiver_heads: int = 4    # MQA: 4 query heads, 1 kv head, head_dim=latent_size
-    perceiver_blocks: int = 8   # статья: 8 cross-attention блоков
+    # Дефолты Idefics2PerceiverConfig: n_heads=16, head_dim=128, num_kv_heads=4
+    # → GQA 16:4. q_proj 512→2048, k/v_proj 512→512, o_proj 2048→512.
+    n_latent_queries: int = 8       # = lora_r
+    perceiver_heads: int = 16
+    perceiver_kv_heads: int = 4
+    perceiver_head_dim: int = 128
+    perceiver_blocks: int = 8       # статья: 8 cross-attention блоков
     latent_size: int = 512
 
     # --- HyperLoRA ---
@@ -103,7 +107,9 @@ if __name__ == "__main__":
     print(f"LoRA r={cfg.lora_r}, alpha={cfg.lora_alpha:.2f}, scaling={cfg.lora_scaling:.4f}")
     print(f"d_in={cfg.d_in}, d_out={cfg.d_out}, d_lora={cfg.d_in + cfg.d_out}")
     print(f"Perceiver:    {cfg.n_latent_queries} queries, {cfg.perceiver_blocks} blocks, "
-          f"{cfg.perceiver_heads} heads, latent={cfg.latent_size}")
-    print(f"q_proj:       {cfg.latent_size} → {cfg.latent_size * cfg.perceiver_heads}")
+          f"{cfg.perceiver_heads}q/{cfg.perceiver_kv_heads}kv heads × "
+          f"{cfg.perceiver_head_dim} head_dim, latent={cfg.latent_size}")
+    print(f"q_proj:       {cfg.latent_size} → {cfg.perceiver_heads * cfg.perceiver_head_dim}")
+    print(f"k/v_proj:     {cfg.latent_size} → {cfg.perceiver_kv_heads * cfg.perceiver_head_dim}")
     print(f"Device:       {cfg.device}")
     print(f"Batch:        {cfg.batch_size} × grad_accum {cfg.grad_accum} = {cfg.batch_size * cfg.grad_accum} effective")
