@@ -114,6 +114,19 @@ class SQuADDataset(Dataset):
         ds = load_dataset("rajpurkar/squad", split=split)
         if max_samples is not None:
             ds = ds.select(range(min(max_samples, len(ds))))
+
+        # Отфильтровываем примеры с контекстом длиннее max_chunk_len токенов
+        ctx_lengths = tokenizer(
+            ds["context"],
+            add_special_tokens=False,
+            truncation=False,
+            return_length=True,
+        )["length"]
+        keep = [i for i, l in enumerate(ctx_lengths) if l <= config.max_chunk_len]
+        if len(keep) < len(ds):
+            print(f"  SQuAD {split}: отфильтровано {len(ds) - len(keep)} длинных примеров "
+                  f"(>{config.max_chunk_len} токенов), осталось {len(keep)}")
+            ds = ds.select(keep)
         self.data = ds
 
     def __len__(self) -> int:
