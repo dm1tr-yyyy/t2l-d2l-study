@@ -25,7 +25,12 @@ from .lora_injection import inject_lora, remove_lora
 from .losses import compute_teacher_topk, kl_distillation_loss, l1_regularization
 
 
-def train(config: D2LConfig | None = None, resume_from: str | None = None, max_samples: int | None = None):
+def train(
+    config: D2LConfig | None = None,
+    resume_from: str | None = None,
+    max_samples: int | None = None,
+    datasets: list[str] | None = None,
+):
     if config is None:
         config = auto_config()
 
@@ -76,8 +81,13 @@ def train(config: D2LConfig | None = None, resume_from: str | None = None, max_s
     # -------------------------------------------------------------------------
     # Данные
     # -------------------------------------------------------------------------
-    print("Загружаю SQuAD...")
-    dataloader = get_dataloader(tokenizer, config, split="train", max_samples=max_samples)
+    dataloader = get_dataloader(
+        tokenizer,
+        config,
+        split="train",
+        max_samples=max_samples,
+        datasets=datasets,
+    )
     data_iter = iter(dataloader)
 
     # -------------------------------------------------------------------------
@@ -118,51 +128,62 @@ def train(config: D2LConfig | None = None, resume_from: str | None = None, max_s
             data_iter = iter(dataloader)
             batch = next(data_iter)
 
+        # teacher/student на device; packed_ctx отдельно (list doc_lengths не тензор)
+        doc_lengths = batch.pop("doc_lengths")
+        packed_ctx  = batch.pop("packed_ctx_ids").to(device)
         batch = {k: v.to(device) for k, v in batch.items()}
+        n_docs = len(doc_lengths)
 
         # -------------------------------------------------------------------
-        # 1. Teacher forward (с контекстом, no grad)
+        # 1. Teacher forward (с контекстом, no grad) — весь батч за один pass
         # -------------------------------------------------------------------
         with torch.no_grad():
             teacher_out = base_model(
                 input_ids=batch["teacher_input_ids"],
                 attention_mask=batch["teacher_attention_mask"],
             )
-            teacher_topk_lp, teacher_topk_idx = compute_teacher_topk(
-                teacher_out.logits, batch["teacher_labels"], top_k=config.kl_top_k,
+
+        # -------------------------------------------------------------------
+        # 2. Гиперсеть: packed ctx → N LoRA за один LLM pass
+        # -------------------------------------------------------------------
+        lora_dict = d2l.forward_packed(packed_ctx, doc_lengths)
+        # lora_dict: {"A": [n_docs, n_layers, r, d_in], "B": [...]}
+
+        # -------------------------------------------------------------------
+        # 3. Student forward — отдельно для каждого документа со своей LoRA
+        # -------------------------------------------------------------------
+        l1_loss  = l1_regularization(lora_dict)
+        kl_total = torch.tensor(0.0, device=device)
+
+        for doc_idx in range(n_docs):
+            topk_lp, topk_idx = compute_teacher_topk(
+                teacher_out.logits[doc_idx : doc_idx + 1],
+                batch["teacher_labels"][doc_idx : doc_idx + 1],
+                top_k=config.kl_top_k,
+            )
+
+            doc_lora = {
+                "A": lora_dict["A"][doc_idx : doc_idx + 1],
+                "B": lora_dict["B"][doc_idx : doc_idx + 1],
+            }
+            inject_lora(base_model, doc_lora, config)
+
+            student_out = base_model(
+                input_ids=batch["student_input_ids"][doc_idx : doc_idx + 1],
+                attention_mask=batch["student_attention_mask"][doc_idx : doc_idx + 1],
+            )
+            remove_lora(base_model, config)
+
+            kl_total = kl_total + kl_distillation_loss(
+                student_out.logits,
+                batch["student_labels"][doc_idx : doc_idx + 1],
+                topk_lp, topk_idx,
             )
 
         # -------------------------------------------------------------------
-        # 2. Гиперсеть: документ → LoRA
+        # 4. Loss
         # -------------------------------------------------------------------
-        lora_dict = d2l(batch["ctx_input_ids"], batch["ctx_attention_mask"])
-
-        # -------------------------------------------------------------------
-        # 3. Инжектим LoRA в base_model
-        # -------------------------------------------------------------------
-        inject_lora(base_model, lora_dict, config)
-
-        # -------------------------------------------------------------------
-        # 4. Student forward (без контекста, с LoRA)
-        # -------------------------------------------------------------------
-        student_out = base_model(
-            input_ids=batch["student_input_ids"],
-            attention_mask=batch["student_attention_mask"],
-        )
-
-        # -------------------------------------------------------------------
-        # 5. Убираем LoRA
-        # -------------------------------------------------------------------
-        remove_lora(base_model, config)
-
-        # -------------------------------------------------------------------
-        # 6. Loss
-        # -------------------------------------------------------------------
-        kl_loss = kl_distillation_loss(
-            student_out.logits, batch["student_labels"],
-            teacher_topk_lp, teacher_topk_idx,
-        )
-        l1_loss = l1_regularization(lora_dict)
+        kl_loss = kl_total / n_docs
         loss = kl_loss + config.l1_reg * l1_loss
 
         # Grad accumulation
@@ -236,10 +257,15 @@ if __name__ == "__main__":
                         help="Learning rate")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Limit training samples (for quick tests)")
+    parser.add_argument("--datasets", type=str, default="squad",
+                        help="Comma-separated dataset names from DATASET_REGISTRY "
+                             "(squad, drop, ropes). Default: squad.")
     args = parser.parse_args()
 
+    datasets = [s.strip() for s in args.datasets.split(",") if s.strip()]
+
     overrides = {k: v for k, v in vars(args).items()
-                 if k not in ("model", "resume_from", "max_samples") and v is not None}
+                 if k not in ("model", "resume_from", "max_samples", "datasets") and v is not None}
 
     cfg = auto_config(args.model, **overrides) if args.model else auto_config(**overrides)
-    train(cfg, resume_from=args.resume_from, max_samples=args.max_samples)
+    train(cfg, resume_from=args.resume_from, max_samples=args.max_samples, datasets=datasets)

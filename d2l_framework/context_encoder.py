@@ -71,10 +71,12 @@ class ContextEncoder(nn.Module):
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
+        position_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
         outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
+            position_ids=position_ids,
             output_hidden_states=True,
             return_dict=True,
         )
@@ -84,6 +86,47 @@ class ContextEncoder(nn.Module):
         # Берём все слои кроме embedding (как в reference)
         layer_outputs = outputs.hidden_states[1:]  # num_layers tensors
         return torch.stack(layer_outputs, dim=1)  # [batch, num_layers, seq, hidden]
+
+    @torch.no_grad()
+    def forward_packed(
+        self,
+        input_ids: torch.Tensor,       # [1, packed_len]
+        doc_lengths: list[int],
+    ) -> torch.Tensor:
+        """
+        Один forward по упакованной последовательности с block-diagonal causal
+        маской и per-document position_ids — внимание не пересекает границы
+        документов, RoPE стартует с 0 для каждого документа.
+
+        Returns:
+            [1, num_layers, packed_len, hidden_size]
+        """
+        device     = input_ids.device
+        packed_len = input_ids.shape[1]
+        assert sum(doc_lengths) == packed_len, \
+            f"sum(doc_lengths)={sum(doc_lengths)} != packed_len={packed_len}"
+
+        # Per-document position_ids: arange(L) для каждого документа
+        position_ids = torch.cat([
+            torch.arange(L, device=device, dtype=torch.long) for L in doc_lengths
+        ]).unsqueeze(0)  # [1, packed_len]
+
+        # Block-diagonal causal mask: внутри документа — causal, между — -inf
+        dtype   = next(self.model.parameters()).dtype
+        neg_inf = torch.finfo(dtype).min
+        mask    = torch.full((packed_len, packed_len), neg_inf, device=device, dtype=dtype)
+        start = 0
+        for L in doc_lengths:
+            end       = start + L
+            tri_mask  = torch.triu(
+                torch.ones(L, L, device=device, dtype=torch.bool), diagonal=1
+            )
+            block     = torch.zeros((L, L), device=device, dtype=dtype).masked_fill(tri_mask, neg_inf)
+            mask[start:end, start:end] = block
+            start = end
+        mask = mask.unsqueeze(0).unsqueeze(0)  # [1, 1, packed_len, packed_len]
+
+        return self._forward_chunk(input_ids, attention_mask=mask, position_ids=position_ids)
 
 
 if __name__ == "__main__":

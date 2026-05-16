@@ -88,8 +88,9 @@ class PerceiverAttention(nn.Module):
 
     def forward(
         self,
-        latents: torch.Tensor,  # [batch, n_queries, latent_size]
-        context: torch.Tensor,  # [batch, ctx_len,   latent_size]
+        latents: torch.Tensor,                          # [batch, n_queries, latent_size]
+        context: torch.Tensor,                          # [batch, ctx_len,   latent_size]
+        attention_mask: torch.Tensor | None = None,     # [batch, ctx_len]  (bool, True=keep)
     ) -> torch.Tensor:
         bs, n_q, _ = latents.shape
         n_kv = context.shape[1]
@@ -108,7 +109,12 @@ class PerceiverAttention(nn.Module):
         k = k.repeat_interleave(self.kv_groups, dim=1)  # [b, n_heads, n_kv, head_dim]
         v = v.repeat_interleave(self.kv_groups, dim=1)
 
-        attn_out = F.scaled_dot_product_attention(q, k, v, is_causal=False)
+        # attention_mask [b, n_kv] → [b, 1, 1, n_kv], broadcast по n_heads и n_q
+        attn_mask = None
+        if attention_mask is not None:
+            attn_mask = attention_mask[:, None, None, :].to(torch.bool)
+
+        attn_out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=False)
         # [b, n_heads, n_q, head_dim]
 
         attn_out = attn_out.transpose(1, 2).contiguous().view(bs, n_q, self.n_heads * self.head_dim)
@@ -141,12 +147,14 @@ class PerceiverBlock(nn.Module):
         self,
         latents: torch.Tensor,
         context: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         # Cross-attention: pre-norm latents и context, post-norm output + residual
         residual = latents
         attn_out = self.attn(
             self.input_latents_norm(latents),
             self.input_context_norm(context),
+            attention_mask=attention_mask,
         )
         latents = residual + self.post_attn_norm(attn_out)
 
@@ -186,11 +194,15 @@ class PerceiverStack(nn.Module):
         ])
         self.final_norm = RMSNorm(latent_size)
 
-    def forward(self, context: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        context: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         bs = context.shape[0]
         latents = self.latents.unsqueeze(0).expand(bs, -1, -1)
         for block in self.blocks:
-            latents = block(latents, context)
+            latents = block(latents, context, attention_mask=attention_mask)
         return self.final_norm(latents)
 
 
@@ -236,16 +248,22 @@ class PerceiverResampler(nn.Module):
             num_blocks=1,
         )
 
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        features: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """
         Args:
-            features: [batch, seq_len, hidden_size]
+            features:       [batch, seq_len, hidden_size]
+            attention_mask: [batch, seq_len] (bool, True=keep) — для маскирования
+                            padded позиций в encoder cross-attention.
         Returns:
             [batch, n_latent_queries, latent_size]
         """
-        projected = self.modality_proj(features)   # [batch, seq, latent_size]
-        encoder_out = self.encoder(projected)      # [batch, n_latents, latent_size]
-        decoder_out = self.decoder(encoder_out)    # [batch, n_latents, latent_size]
+        projected   = self.modality_proj(features)                            # [b, seq, latent]
+        encoder_out = self.encoder(projected, attention_mask=attention_mask)  # [b, n_latents, latent]
+        decoder_out = self.decoder(encoder_out)                                # [b, n_latents, latent]
         return decoder_out
 
 

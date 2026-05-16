@@ -78,6 +78,51 @@ class DocToLoRA(nn.Module):
 
         return lora_dict
 
+    def forward_packed(
+        self,
+        packed_input_ids: torch.Tensor,  # [1, packed_len]
+        doc_lengths: list[int],
+    ) -> dict[str, torch.Tensor]:
+        """
+        Sequence-packed forward: один LLM pass для всех документов батча
+        (с block-diagonal causal маской и сбросом RoPE-позиций между документами),
+        затем split по границам и batched perceiver+hyperlora (с padding mask).
+
+        Args:
+            packed_input_ids: [1, packed_len] — все ctx конкатенированы без padding
+            doc_lengths: длины каждого документа
+        Returns:
+            {"A": [n_docs, n_layers, r, d_in], "B": [n_docs, n_layers, r, d_out]}
+        """
+        # 1. Один LLM pass с block-diagonal causal mask и per-doc position_ids
+        activations = self.encoder.forward_packed(packed_input_ids, doc_lengths)
+        # activations: [1, n_layers, packed_len, hidden_size]
+
+        n_docs      = len(doc_lengths)
+        n_layers    = activations.shape[1]
+        hidden_size = activations.shape[3]
+        max_doc_len = max(doc_lengths)
+        device      = activations.device
+
+        # 2. Split по документам и re-pad до [n_docs, n_layers, max_doc_len, hidden]
+        batched = activations.new_zeros(n_docs, n_layers, max_doc_len, hidden_size)
+        perceiver_mask = torch.zeros(n_docs, max_doc_len, dtype=torch.bool, device=device)
+        start = 0
+        for i, length in enumerate(doc_lengths):
+            batched[i, :, :length]       = activations[0, :, start:start + length]
+            perceiver_mask[i, :length]   = True
+            start += length
+
+        # 3. Per-layer perceiver (batched по n_docs) с маской padded позиций
+        layer_latents = []
+        for layer_idx in range(n_layers):
+            layer_act = batched[:, layer_idx]                                      # [n_docs, max_doc_len, hidden]
+            latent    = self.perceiver(layer_act, attention_mask=perceiver_mask)   # [n_docs, n_queries, latent]
+            layer_latents.append(latent)
+
+        stacked = torch.stack(layer_latents, dim=1)  # [n_docs, n_layers, n_queries, latent]
+        return self.hyperlora(stacked)
+
     def trainable_parameters(self):
         """Параметры для оптимизатора (всё кроме encoder)."""
         for p in self.perceiver.parameters():

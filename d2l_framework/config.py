@@ -36,15 +36,16 @@ class D2LConfig:
     num_pre_head_layers: int = 1
 
     # --- Encoder ---
-    max_chunk_len: int = 512    # для ctx токенизации (SQuAD: ~200 токенов)
-    max_teacher_len: int = 1024 # для teacher prompt (ctx+Q+A)
+    max_chunk_len: int = 512     # для ctx токенизации (SQuAD: ~200 токенов)
+    max_teacher_len: int = 1024  # для teacher prompt (ctx+Q+A)
+    max_packed_ctx_len: int = 4096  # sequence packing: макс. токенов ctx за один LLM pass
 
     # --- Training ---
     lr: float = 3e-5
     # 2 эпохи на SQuAD: 87599 / batch_size=4 * 2 = 43800 шагов
     max_steps: int = 43800
-    batch_size: int = 4
-    grad_accum: int = 8         # effective batch = 32
+    batch_size: int = 8
+    grad_accum: int = 32         # effective batch = 256 docs
     warmup_ratio: float = 0.05
     kl_top_k: int = 16
     l1_reg: float = 1e-4
