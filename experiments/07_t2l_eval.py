@@ -109,14 +109,21 @@ def free_model(model, device: torch.device):
 # ---------------------------------------------------------------------------
 
 def generate(model, tokenizer, prompt: str, max_new_tokens: int = 200,
-             few_shot_turns: list[dict] | None = None) -> tuple[str, float]:
-    """few_shot_turns: список {"user": ..., "assistant": ...} — вставляются перед финальным вопросом."""
+             few_shot_turns: list[dict] | None = None,
+             system: str | None = None) -> tuple[str, float]:
+    """few_shot_turns: список {"user": ..., "assistant": ...} — вставляются перед финальным вопросом.
+    system: если задан — добавляется в начало первого user-сообщения (один раз)."""
     chat = []
     if few_shot_turns:
-        for turn in few_shot_turns:
+        first, *rest = few_shot_turns
+        first_content = f"{system}\n\n{first['user']}" if system else first["user"]
+        chat.append({"role": "user",      "content": first_content})
+        chat.append({"role": "assistant", "content": first["assistant"]})
+        for turn in rest:
             chat.append({"role": "user",      "content": turn["user"]})
             chat.append({"role": "assistant", "content": turn["assistant"]})
-    chat.append({"role": "user", "content": prompt})
+    final_content = f"{system}\n\n{prompt}" if (system and not few_shot_turns) else prompt
+    chat.append({"role": "user", "content": final_content})
     result = tokenizer.apply_chat_template(
         chat, add_generation_prompt=True, return_tensors="pt",
     )
@@ -248,20 +255,13 @@ def load_russian_qa():
 
 def eval_russian_qa(model, tokenizer, examples, mode: str) -> dict:
     """mode: 'base' (без контекста) | 'context' | 't2l' (с контекстом)"""
+    task_desc = T2L_TASK_DESCRIPTIONS["russian_qa"]
     results, t_total = [], 0.0
     for i, ex in enumerate(examples):
         if mode == "base":
-            prompt = (
-                "Answer the following question in Russian briefly (1-5 words), "
-                "only the answer, nothing else.\n\n"
-                f"Question: {ex['Q']}"
-            )
+            prompt = f"{task_desc}\n\nQuestion: {ex['Q']}"
         else:
-            prompt = (
-                "Answer the question in Russian based on the context. "
-                "Answer briefly (1-5 words), only the answer, nothing else.\n\n"
-                f"Context: {ex['C']}\n\nQuestion: {ex['Q']}"
-            )
+            prompt = f"{task_desc}\n\nContext: {ex['C']}\n\nQuestion: {ex['Q']}"
         pred, elapsed = generate(model, tokenizer, prompt, max_new_tokens=50)
         t_total += elapsed
         gold = ex["A"]
@@ -290,21 +290,14 @@ def load_english_qa():
 
 
 def eval_english_qa(model, tokenizer, examples, mode: str) -> dict:
+    task_desc = T2L_TASK_DESCRIPTIONS["english_qa"]
     results, t_total = [], 0.0
     for i, ex in enumerate(examples):
         gold = ex["answers"]["text"][0] if ex["answers"]["text"] else ""
         if mode == "base":
-            prompt = (
-                "Answer the following question briefly (1-5 words), "
-                "only the answer, nothing else.\n\n"
-                f"Question: {ex['question']}"
-            )
+            prompt = f"{task_desc}\n\nQuestion: {ex['question']}"
         else:
-            prompt = (
-                "Answer the question based on the context. "
-                "Answer briefly (1-5 words), only the answer, nothing else.\n\n"
-                f"Context: {ex['context']}\n\nQuestion: {ex['question']}"
-            )
+            prompt = f"{task_desc}\n\nContext: {ex['context']}\n\nQuestion: {ex['question']}"
         pred, elapsed = generate(model, tokenizer, prompt, max_new_tokens=50)
         t_total += elapsed
         results.append({"question": ex["question"], "gold": gold, "pred": pred,
@@ -327,46 +320,69 @@ def eval_english_qa(model, tokenizer, examples, mode: str) -> dict:
 # ЗАДАЧА 3: NER (CoNLL-2003)
 # ===========================================================================
 
-NER_SYSTEM = (
-    "You are a Named Entity Recognition (NER) assistant. "
-    "Find all named entities in the sentence and list them by type. "
-    "Types: PER (person), ORG (organization), LOC (location). "
-    "Format: 'PER: name1, name2 | ORG: org1 | LOC: loc1'. "
-    "If no entities of a type, skip it. If no entities at all, write 'none'. "
-    "Output ONLY the entity list in the exact format above, nothing else."
-)
+# Описания задач — те же, что использовались в 06_text_to_lora.py для генерации T2L-адаптеров.
+# Все три режима (base / context / t2l) получают одинаковый промпт — честное сравнение.
+T2L_TASK_DESCRIPTIONS = {
+    "russian_qa": (
+        "This task requires you to answer questions in Russian based on a provided context paragraph. "
+        "You must read the context carefully and extract the exact answer span from the text. "
+        "Answer briefly using only information from the given context."
+    ),
+    "english_qa": (
+        "This task requires you to answer questions in English based on a provided context paragraph. "
+        "You must read the context carefully and extract a short, precise answer. "
+        "Answer concisely using only information from the given context."
+    ),
+    "ner": (
+        "This task requires you to identify and classify named entities in English text. "
+        "You must detect persons (PER), organizations (ORG), and locations (LOC). "
+        "For each entity, output its text and its label in a structured format."
+    ),
+    "summarization": (
+        "This task requires you to write a concise one-sentence summary of a dialogue. "
+        "You must capture the main topic and outcome of the conversation. "
+        "Be brief, factual, and do not include unnecessary details."
+    ),
+}
+
+NER_SYSTEM = T2L_TASK_DESCRIPTIONS["ner"]
 
 
 def load_ner():
     return list(load_dataset("Davlan/conll2003_noMISC")["validation"].select(range(N_EVAL)))
 
 
+# Фиксированные few-shot примеры для NER (+context mode).
+# Покрывают все три типа: PER, ORG, LOC.
+NER_FEW_SHOT = [
+    {
+        "user":      "Sentence: Apple CEO Tim Cook announced new products in Cupertino .",
+        "assistant": "PER: Tim Cook | ORG: Apple | LOC: Cupertino",
+    },
+    {
+        "user":      "Sentence: The United Nations held an emergency meeting in New York .",
+        "assistant": "ORG: United Nations | LOC: New York",
+    },
+    {
+        "user":      "Sentence: Angela Merkel visited Paris and met with Emmanuel Macron .",
+        "assistant": "PER: Angela Merkel, Emmanuel Macron | LOC: Paris",
+    },
+]
+
+
 def eval_ner(model, tokenizer, examples, mode: str) -> dict:
-    # few-shot примеры — оформляем как отдельные user/assistant туры
-    few_shot_turns = None
-    if mode in ("context", "t2l"):
-        shots_ds = load_dataset("Davlan/conll2003_noMISC")["train"]
-        shots = []
-        for ex in shots_ds:
-            if len(ex["tokens"]) >= 5 and any(t != "O" for t in ex["ner_tags"]):
-                shots.append(ex)
-            if len(shots) == N_FEW_SHOT:
-                break
-        few_shot_turns = []
-        for ex in shots:
-            sent = " ".join(ex["tokens"])
-            gold = entities_to_string(decode_ner(ex["tokens"], ex["ner_tags"]))
-            few_shot_turns.append({"user": f"{NER_SYSTEM}\n\nSentence: {sent}",
-                                   "assistant": gold})
+    # base и t2l — только task_desc (zero-shot); +context — task_desc + 3 примера
+    few_shot_turns = NER_FEW_SHOT if mode == "context" else None
 
     results, t_total = [], 0.0
     for i, ex in enumerate(examples):
         sentence      = " ".join(ex["tokens"])
         gold_entities = decode_ner(ex["tokens"], ex["ner_tags"])
-        prompt = f"{NER_SYSTEM}\n\nSentence: {sentence}"
+        prompt = f"Sentence: {sentence}"
 
         pred, elapsed = generate(model, tokenizer, prompt, max_new_tokens=100,
-                                 few_shot_turns=few_shot_turns)
+                                 few_shot_turns=few_shot_turns,
+                                 system=NER_SYSTEM if mode != "t2l" else None)
         t_total += elapsed
         metrics = compute_ner_f1(pred, gold_entities)
         results.append({"sentence": sentence, "gold": entities_to_string(gold_entities),
@@ -393,23 +409,36 @@ def load_summarization():
     return list(load_dataset("spencer/samsum_reformat")["test"].select(range(N_EVAL)))
 
 
+SUM_FEW_SHOT = [
+    {
+        "user": "Dialogue:\nAmanda: I baked cookies. Do you want some?\nJerry: Sure!\nAmanda: I'll bring you tomorrow :-)",
+        "assistant": "Amanda baked cookies and will bring Jerry some tomorrow.",
+    },
+    {
+        "user": (
+            "Dialogue:\nTim: Hi, what's up?\nKim: Bad mood tbh, I was going to do lots of stuff but ended up procrastinating\n"
+            "Tim: What did you plan on doing?\nKim: Oh you know, uni stuff and unfucking my room\n"
+            "Kim: Maybe tomorrow I'll move my ass and do everything\n"
+            "Kim: We were going to defrost a fridge so instead of shopping I'll eat some defrosted veggies\n"
+            "Tim: For doing stuff I recommend Pomodoro technique where u use breaks for doing chores\n"
+            "Tim: It really helps\nKim: thanks, maybe I'll do that\nTim: I also like using post-its in kaban style"
+        ),
+        "assistant": "Kim may try the Pomodoro technique recommended by Tim to get more stuff done.",
+    },
+]
+
+
 def eval_summarization(model, tokenizer, examples, mode: str) -> dict:
-    _sum_instr = ("Write a brief one-sentence summary of the following dialogue. "
-                  "Be concise and factual.")
-    few_shot_turns = None
-    if mode in ("context", "t2l"):
-        shots_ds = load_dataset("spencer/samsum_reformat")["train"].select(range(2))
-        few_shot_turns = [
-            {"user": f"{_sum_instr}\n\nDialogue:\n{ex['dialogue']}",
-             "assistant": ex["summary"]}
-            for ex in shots_ds
-        ]
+    _sum_instr = T2L_TASK_DESCRIPTIONS["summarization"]
+    # base и t2l — только task_desc (zero-shot); +context — task_desc + 2 примера
+    few_shot_turns = SUM_FEW_SHOT if mode == "context" else None
 
     results, t_total = [], 0.0
     for i, ex in enumerate(examples):
-        prompt = f"{_sum_instr}\n\nDialogue:\n{ex['dialogue']}"
+        prompt = f"Dialogue:\n{ex['dialogue']}"
         pred, elapsed = generate(model, tokenizer, prompt, max_new_tokens=80,
-                                 few_shot_turns=few_shot_turns)
+                                 few_shot_turns=few_shot_turns,
+                                 system=_sum_instr if mode != "t2l" else None)
         t_total += elapsed
         gold = ex["summary"]
         metrics = compute_rouge(pred, gold)
@@ -490,10 +519,10 @@ def print_gemma_table(results: dict):
 # ===========================================================================
 
 TASK_LOADERS = {
-    #"russian_qa":    (load_russian_qa,    eval_russian_qa),
-    #"english_qa":    (load_english_qa,    eval_english_qa),
-    #"ner":           (load_ner,           eval_ner),
-    "summarization": (load_summarization, eval_summarization)
+    "russian_qa":    (load_russian_qa,    eval_russian_qa),
+    "english_qa":    (load_english_qa,    eval_english_qa),
+    "ner":           (load_ner,           eval_ner),
+    "summarization": (load_summarization, eval_summarization),
 }
 
 
