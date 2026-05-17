@@ -41,7 +41,7 @@ class D2LConfig:
     max_packed_ctx_len: int = 4096  # sequence packing: макс. токенов ctx за один LLM pass
 
     # --- Training ---
-    lr: float = 3e-5
+    lr: float = 5e-5
     # 2 эпохи на SQuAD: 87599 / batch_size=4 * 2 = 43800 шагов
     max_steps: int = 43800
     batch_size: int = 8

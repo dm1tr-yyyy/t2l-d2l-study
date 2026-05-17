@@ -32,10 +32,12 @@ class DocToLoRAInference:
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        # Загружаем базовую модель
+        # Загружаем базовую модель.
+        # bf16 на CUDA (match с train.py), fp32 на MPS/CPU.
+        dtype = torch.bfloat16 if self.device.type == "cuda" else torch.float32
         self.base_model = AutoModelForCausalLM.from_pretrained(
             config.model_name,
-            torch_dtype=torch.float32,
+            torch_dtype=dtype,
             attn_implementation="eager",
         ).to(self.device)
         self.base_model.eval()

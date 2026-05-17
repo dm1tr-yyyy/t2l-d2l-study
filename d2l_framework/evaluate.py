@@ -83,14 +83,14 @@ def eval_variant(
         t0 = time.perf_counter()
 
         if mode == "base":
-            pred = model.generate(question, max_new_tokens=600)
+            pred = model.generate(question, max_new_tokens=64)
 
         elif mode == "context":
-            pred = model.generate_with_context(context, question, max_new_tokens=600)
+            pred = model.generate_with_context(context, question, max_new_tokens=64)
 
         elif mode == "d2l":
             model.internalize(context)
-            pred = model.generate(question, max_new_tokens=600)
+            pred = model.generate(question, max_new_tokens=64)
 
         t_total += time.perf_counter() - t0
 
@@ -106,6 +106,10 @@ def eval_variant(
             m = aggregate(results)
             spe = t_total / len(results)
             print(f"  [{label}] {i+1}/{N_EVAL} — EM={m['EM']:.1f}, F1={m['F1']:.1f} ({spe:.2f}s/ex)")
+            # Каждые 10 примеров чистим CUDA allocator — уменьшает фрагментацию
+            # между разными длинами generate'а (особенно для D2L и base).
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     metrics = aggregate(results)
     spe = t_total / len(results)

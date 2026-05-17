@@ -95,12 +95,17 @@ def train(
     # -------------------------------------------------------------------------
     optimizer = torch.optim.AdamW(d2l.trainable_parameters(), lr=config.lr, weight_decay=0.01)
 
-    warmup_steps = int(config.max_steps * config.warmup_ratio)
+    # LR schedule считаем в optimizer-шагах (scheduler.step() вызывается раз
+    # в config.grad_accum forward-шагов). До этого warmup/cosine были посчитаны
+    # в forward-шагах — в итоге warmup длился ~grad_accum× дольше задуманного
+    # и cosine decay не доходил до нуля.
+    total_optim_steps  = max(config.max_steps // config.grad_accum, 1)
+    warmup_optim_steps = max(int(total_optim_steps * config.warmup_ratio), 1)
 
-    def lr_schedule(step: int) -> float:
-        if step < warmup_steps:
-            return step / max(warmup_steps, 1)
-        progress = (step - warmup_steps) / max(config.max_steps - warmup_steps, 1)
+    def lr_schedule(opt_step: int) -> float:
+        if opt_step < warmup_optim_steps:
+            return opt_step / warmup_optim_steps
+        progress = (opt_step - warmup_optim_steps) / max(total_optim_steps - warmup_optim_steps, 1)
         return 0.5 * (1 + torch.cos(torch.tensor(progress * 3.14159)).item())
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_schedule)
